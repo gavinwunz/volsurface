@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# C++
+*.o
+*.so
+*.dylib
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+
+# Data snapshots (large, reproducible) — keep a small sample only if committed explicitly
+data/snapshots/*.parquet
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
