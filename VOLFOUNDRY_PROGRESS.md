@@ -127,6 +127,21 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-10: **P6 complete.** The most important quantitative production change.
+  SSVI analytical constraints (Lee bound `eta*(1+|rho|) <= 2`, calendar
+  monotonicity) are now enforced as hard penalties IN the optimizer objective,
+  not merely printed after fitting.  SSVI results that violate the Lee bound
+  are rejected (success=False) even if the optimizer terminated without error.
+  Per-slice SVI diagnostics now include `svi_status` (valid/converged_invalid/
+  did_not_converge/not_fitted), `g_min`, and `k_eval_domain`.  ValidationReport
+  includes analytical rejection reasons alongside numerical failures, and the
+  evaluation domain/tolerances are always recorded.  Added 25 P6 acceptance
+  tests covering all seven plan §9 requirements: invalid params detected,
+  calendar-crossing fails strict, strict mode refuses invalid surfaces, report
+  mode preserves invalid fits with clear flags, valid SSVI passes, optimizer
+  failure vs arbitrage failure distinguishable, tolerance changes in metadata.
+  402 tests pass (377 + 25 new P6).  Build + twine check green.  Committed as
+  258ae51, pushed.
 - 2026-08-10: **P5 complete.** Deribit HTTP hardened: `_build_session()` with
   `urllib3.Retry` (3 retries, exponential backoff with jitter, only 429/5xx),
   `User-Agent: VolFoundry/0.1.0`, explicit connect (10s) + read (30s) timeouts.
