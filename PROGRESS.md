@@ -11,11 +11,11 @@ work session: check off completed items, note what's in flight, record blockers.
 ## Milestones
 
 ### M1 — Data layer
-- [ ] Deribit public API client (BTC/ETH option chains)
-- [ ] Raw snapshot persistence to parquet (timestamped, never overwrite)
-- [ ] Forward extraction via put-call parity regression C - P = e^{-rT}(F - K)
-- [ ] Quote filters (zero bid, crossed, < 2 days to expiry)
-- [ ] pytest coverage
+- [x] Deribit public API client (BTC/ETH option chains)
+- [x] Raw snapshot persistence to parquet (timestamped, never overwrite)
+- [x] Forward extraction via put-call parity regression C - P = e^{-rT}(F - K)
+- [x] Quote filters (zero bid, crossed, < 2 days to expiry)
+- [x] pytest coverage (32 tests)
 
 ### M2 — Implied vol inversion
 - [ ] Newton-Raphson on vega, Brenner-Subrahmanyam seed
@@ -57,4 +57,4 @@ work session: check off completed items, note what's in flight, record blockers.
 ## Session log
 _(append newest at top: date/time, milestone touched, what changed, blockers)_
 
-- 2026-08-10 11:35 UTC — scaffold created (SPEC, PROGRESS, README, package skeleton).
+- 2026-08-10 12:00 UTC — M1 complete. Implemented Deribit JSON-RPC client (fetcher.py), timestamped parquet persistence (persistence.py), put-call parity forward extraction via OLS regression (forwards.py), and quote filters (filters.py). 32 pytest tests all passing. Created docs/derivations/ and reports/ directories.
