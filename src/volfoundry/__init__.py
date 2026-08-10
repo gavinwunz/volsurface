@@ -14,7 +14,50 @@ surfaces with explicit numerical diagnostics and reproducible market snapshots.
 """
 
 from volfoundry._version import __version__ as __version__
+from volfoundry.client import DeribitClient
+from volfoundry.exceptions import (
+    ArbitrageViolationError,
+    CalibrationConvergenceError,
+    CalibrationError,
+    ConfigurationError,
+    DataError,
+    ImpliedVolError,
+    InvalidSurfaceError,
+    MarketDataError,
+    PersistenceError,
+    PricingError,
+    QuoteValidationError,
+    VolFoundryError,
+)
+from volfoundry.surface.builder import SurfaceBuilder
+from volfoundry.surface.result_types import (
+    OptionChain,
+    SurfaceFitResult,
+    ValidationReport,
+)
+from volfoundry.surface.volatility_surface import VolatilitySurface
 
-# After the P3 milestone, this module will export a curated public API.
-# For now, the internal subpackage modules remain directly importable.
-__all__: list[str] = ["__version__"]
+__all__ = [
+    "__version__",
+    # High-level API
+    "DeribitClient",
+    "SurfaceBuilder",
+    "VolatilitySurface",
+    # Structured results
+    "SurfaceFitResult",
+    "ValidationReport",
+    "OptionChain",
+    # Exceptions
+    "VolFoundryError",
+    "DataError",
+    "MarketDataError",
+    "QuoteValidationError",
+    "PersistenceError",
+    "PricingError",
+    "ImpliedVolError",
+    "CalibrationError",
+    "CalibrationConvergenceError",
+    "InvalidSurfaceError",
+    "ArbitrageViolationError",
+    "ConfigurationError",
+]
