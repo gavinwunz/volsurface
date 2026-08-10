@@ -16,10 +16,10 @@ append a dated line (newest first) to the session log.
 ## Release-blocking milestones (execute in this order — plan §38)
 
 ### P0 — Freeze & audit current behavior
-- [ ] Record baseline in `docs/development/baseline.md` (commit SHA, Python, OS, test counts, build status)
-- [ ] Inventories: `api_inventory.md`, `network_inventory.md`, `numerics_inventory.md`
-- [ ] Grep sweep for volsurface / 0.0.1 / arbitrage-free / guarantee / print( / TODO / FIXME
-- [ ] Ensure every stochastic test has a controlled seed
+- [x] Record baseline in `docs/development/baseline.md` (commit SHA, Python, OS, test counts, build status)
+- [x] Inventories: `api_inventory.md`, `network_inventory.md`, `numerics_inventory.md`
+- [x] Grep sweep for volsurface / 0.0.1 / arbitrage-free / guarantee / print( / TODO / FIXME
+- [x] Ensure every stochastic test has a controlled seed
 
 ### P1 — Rename volsurface → volfoundry
 - [ ] Move to `src/volfoundry/` layout (data/ iv/ svi/ arbitrage/ pricers/ surface/ cli/)
@@ -127,6 +127,11 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-10: **P0 complete.** Baseline recorded (319 tests, py3.12, Linux x86_64,
+  commit 27f5949). API inventory (55 public symbols), network inventory (2 HTTP
+  surfaces, no import-time calls), numerics inventory (scattered tolerances, no
+  multi-start SVI, Lee bound post-hoc only). Grep sweep clean: 0 TODO/FIXME, 0
+  library print(), seeds controlled throughout. Build succeeds.
 - 2026-08-10: Phase 2 kicked off. Plan committed as spec, tracker created,
   builder repointed from M-milestones to P-milestones. Phase 1 (M1–M6, 319
   tests) preserved.
