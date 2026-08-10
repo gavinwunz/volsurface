@@ -48,14 +48,16 @@ work session: check off completed items, note what's in flight, record blockers.
 - [x] pytest coverage
 
 ### M6 — Surface + reporting
-- [ ] SSVI global fit (theta_t, phi(theta_t))
-- [ ] 3D surface plot
-- [ ] Skew term structure
-- [ ] g(k) diagnostics report
-- [ ] pytest coverage
+- [x] SSVI global fit (theta_t, phi(theta_t))
+- [x] 3D surface plot
+- [x] Skew term structure
+- [x] g(k) diagnostics report
+- [x] pytest coverage
 
 ## Session log
 _(append newest at top: date/time, milestone touched, what changed, blockers)_
+
+- 2026-08-10 20:00 UTC — M6 complete. SSVI global fit (Gatheral-Jacquier 2014) with two-stage calibration: ATM theta_t extraction from market data, then global (eta, lambda) fit with optional fixed rho. Surface visualisation suite: 3D implied vol surface plot (matplotlib 3D), skew term structure (ATM dsigma/dk vs expiry), g(k) butterfly diagnostics grid, IV smile cross-section plot, and human-readable surface validation report writer. 83 new tests (56 surface SSVI/calibration, 27 plotting) — 319 total, all passing. Full SSVI->raw SVI mapping, calendar-no-arbitrage check, Lee bound enforcement. Wrote docs/derivations/ssvi.md with full derivations of SSVI functional form, wing asymptotics, raw SVI equivalence mapping, calendar-free condition proof sketch, and Lee bound constraint.
 
 - 2026-08-10 18:00 UTC — M5 complete. Black-Scholes full Greeks (delta, gamma, vega, theta, rho as discounted sensitivities), CRR binomial tree (European + American, tree-based FD Greeks), Monte Carlo with antithetic variates and BS delta-hedged control variate (two-level: delta hedge + residual F_T regression). C++ hot path via pybind11 (vectorised price + all Greeks in one pass, ~3× faster than QuantLib). Benchmark: all three pricers validated against QuantLib BlackCalculator to <1e-10 on price and <1e-9 on vega; CRR converges to <0.01 with N=2000; MC within 3 SE of analytical. 88 pricer tests (236 total, all passing). Pricers __init__.py exposes clean public API with graceful C++ fallback.
 
