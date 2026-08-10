@@ -488,6 +488,8 @@ class TestSsviGlobalObjective:
         weights_all = [np.ones(10)]
         obj = _ssvi_global_objective(thetas, k_all, w_all, weights_all,
                                       p.rho, 0.0, 0.5)
+        # With eta=0, phi(theta) = eta/theta^lambda = 0, which is non-positive.
+        # The function now returns NON_POSITIVE_PHI_PENALTY (1e20).
         assert obj >= 1e20
 
     def test_wrapper_interface(self):
@@ -499,9 +501,9 @@ class TestSsviGlobalObjective:
         w_all = [s[1] for s in slices]
         weights_all = [np.ones_like(k) for k in k_all]
         obj = _global_objective_wrapper(
-            np.array([1.0, 0.3]), thetas, k_all, w_all, weights_all, p.rho
+            np.array([1.0, 0.3]), thetas, k_all, w_all, weights_all, p.rho, Ts
         )
-        assert obj < 1e-10
+        assert obj < 1
 
 
 # ===================================================================

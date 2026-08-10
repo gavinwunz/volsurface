@@ -286,14 +286,38 @@ class SurfaceBuilder:
 
         # --- Per-expiry diagnostics ------------------------------------------
         per_expiry = []
+        from volfoundry.arbitrage.checks import butterfly_g  # deferred
+
         for i, (svi_r, sid) in enumerate(zip(raw_svi_results, slice_ids)):
+            T_i = float(T_list[i])
+            svi_status = "not_fitted"
+            g_min = None
+            k_eval_domain = None
+
+            if svi_r.outer_success and svi_r.params is not None:
+                # Compute g(k) on the validation grid for this slice
+                k_eval = np.linspace(self.k_range[0], self.k_range[1], self.n_k)
+                try:
+                    g_vals = butterfly_g(k_eval, svi_r.params, T_i)
+                    g_min = float(np.min(g_vals))
+                    butterfly_ok = bool(np.all(g_vals >= self.butterfly_tol))
+                    svi_status = "valid" if butterfly_ok else "converged_invalid"
+                    k_eval_domain = (float(self.k_range[0]), float(self.k_range[1]))
+                except Exception:
+                    svi_status = "converged_invalid"
+            elif not svi_r.outer_success:
+                svi_status = "did_not_converge"
+
             per_expiry.append({
                 "slice_id": sid,
-                "T": float(T_list[i]),
+                "T": T_i,
                 "svi_success": svi_r.outer_success,
+                "svi_status": svi_status,
                 "svi_rmse": svi_r.rmse,
                 "svi_r2": svi_r.r2,
                 "n_points": svi_r.n_points,
+                "g_min": g_min,
+                "k_eval_domain": k_eval_domain,
             })
 
         # --- Global diagnostics -----------------------------------------------
@@ -479,21 +503,24 @@ class SurfaceBuilder:
             "lee_bound": lee_ok,
         }
 
-        is_valid = arb_report.all_passed and all(
+        is_valid = all(
             v for v in analytical.values() if v is not None
-        )
+        ) and arb_report.all_passed
 
-        # Per-slice details
+        # Per-slice details from the arbitrage report, augmented with
+        # SSVI analytical slice status.
         per_slice = []
-        for ar in arb_report.slice_results:
-            per_slice.append({
+        for i, ar in enumerate(arb_report.slice_results):
+            Ti = float(ssvi_result.expiry_times[i]) if i < len(ssvi_result.expiry_times) else ar.T
+            slice_dict: dict = {
                 "slice_id": ar.slice_id,
-                "T": ar.T,
+                "T": Ti,
                 "butterfly_passed": ar.butterfly_passed,
                 "butterfly_min_g": ar.butterfly_min_g,
                 "bl_passed": ar.bl_passed,
                 "k_range": ar.k_range,
-            })
+            }
+            per_slice.append(slice_dict)
 
         # Rejection reasons
         rejection_reasons: dict[str, list[str]] = {}
@@ -510,6 +537,23 @@ class SurfaceBuilder:
         if arb_report.calendar_passed is not None and not arb_report.calendar_passed:
             rejection_reasons["_calendar"] = [
                 f"{len(arb_report.calendar_violations)} calendar violation pair(s)"
+            ]
+        # Add analytical violations to rejection reasons
+        if not analytical.get("theta_positive", True):
+            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
+                "theta not positive"
+            ]
+        if not analytical.get("lee_bound", True):
+            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
+                f"Lee bound violation (eta*(1+|rho|) = {ssvi_result.eta * (1.0 + abs(ssvi_result.rho)):.4f})"
+            ]
+        if not analytical.get("rho_domain", True):
+            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
+                "rho outside (-1, 1)"
+            ]
+        if not analytical.get("lambda_domain", True):
+            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
+                "lambda outside [0, 1]"
             ]
 
         return ValidationReport(

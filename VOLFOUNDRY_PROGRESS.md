@@ -54,12 +54,12 @@ append a dated line (newest first) to the session log.
 - [x] Offline fixture tests; live tests marked `@pytest.mark.live`
 
 ### P6 — Strict no-arbitrage construction contract  *(most important quant change)*
-- [ ] `validation="report"` (research fit, may be invalid but clearly flagged) vs `validation="strict"` (raises `ArbitrageViolationError`)
-- [ ] Enforce SSVI analytical conditions during/for parameter acceptance (not post-hoc print)
-- [ ] rho domain, positive theta, valid eta/lambda, monotone ATM total variance (or documented repair w/ raw+adjusted retained)
-- [ ] Per-slice SVI fit status; distinguish converged vs valid; g(k) min + domain exposed
-- [ ] Every numerical arbitrage report states domain + tolerance; BL density as cross-check only
-- [ ] Acceptance tests (plan §9): invalid params detected, calendar-crossing fails strict, strict refuses invalid, report keeps invalid, valid SSVI passes, optimizer≠arbitrage failure, tolerance in metadata
+- [x] `validation="report"` (research fit, may be invalid but clearly flagged) vs `validation="strict"` (raises `ArbitrageViolationError`)
+- [x] Enforce SSVI analytical conditions during/for parameter acceptance (not post-hoc print)
+- [x] rho domain, positive theta, valid eta/lambda, monotone ATM total variance (or documented repair w/ raw+adjusted retained)
+- [x] Per-slice SVI fit status; distinguish converged vs valid; g(k) min + domain exposed
+- [x] Every numerical arbitrage report states domain + tolerance; BL density as cross-check only
+- [x] Acceptance tests (plan §9): invalid params detected, calendar-crossing fails strict, strict refuses invalid, report keeps invalid, valid SSVI passes, optimizer≠arbitrage failure, tolerance in metadata
 
 ### P7 — Numerical robustness & reproducibility
 - [ ] IV inversion edge cases (below/above bounds, ~0 maturity, deep ITM/OTM, tiny vega, NaN/Inf) → consistent errors

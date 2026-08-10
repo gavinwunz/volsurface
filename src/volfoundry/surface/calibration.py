@@ -61,6 +61,23 @@ from volfoundry.surface.ssvi import (
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Penalties for analytical SSVI constraints enforced during calibration
+# ---------------------------------------------------------------------------
+
+# Lee moment formula: eta*(1+|rho|) <= 2 is required for no-arbitrage.
+# Violations add a large penalty to the objective so the optimizer is pushed
+# toward the feasible region.
+LEE_BOUND_VIOLATION_PENALTY = 1e10
+
+# Calendar arbitrage penalty per violating k-point.  This penalises surfaces
+# where w(k, T1) > w(k, T2) for T1 < T2 at any k in the stress grid.
+CALENDAR_ARBITRAGE_PENALTY_PER_POINT = 1e6
+
+# Penalty for non-positive phi (can happen if lambda is large and theta is
+# small, making theta^(-lambda) overflow or phi -> 0).
+NON_POSITIVE_PHI_PENALTY = 1e20
+
+# ---------------------------------------------------------------------------
 # Default bounds
 # ---------------------------------------------------------------------------
 
@@ -225,6 +242,13 @@ def _ssvi_global_objective(
 ) -> float:
     """Compute global weighted sum of squared errors across all slices.
 
+    Includes hard penalty terms for:
+    1. Lee moment formula violation: eta*(1+|rho|) > 2
+    2. Calendar arbitrage: w(k,T_i) > w(k,T_j) for T_i < T_j
+
+    These penalties push the optimizer away from infeasible regions rather
+    than merely reporting violations after the fact.
+
     Parameters
     ----------
     theta_vec : ndarray
@@ -237,25 +261,39 @@ def _ssvi_global_objective(
     Returns
     -------
     float
-        Total weighted sum of squared residuals.
+        Total weighted sum of squared residuals plus constraint penalties.
     """
     total_obj = 0.0
     n_total = 0
 
+    # --- Lee bound penalty -----------------------------------------------
+    lee_value = eta * (1.0 + abs(rho))
+    if lee_value > 2.0:
+        total_obj += LEE_BOUND_VIOLATION_PENALTY * (lee_value - 2.0) ** 2
+
     for i, (k, w_obs, wts) in enumerate(zip(k_all, w_all, weights_all)):
         theta_i = float(theta_vec[i])
-        phi_i = float(eta / (theta_i ** lamb)) if theta_i > 0 else 0.0
+        if theta_i <= 0:
+            return NON_POSITIVE_PHI_PENALTY
+        phi_i = float(eta / (theta_i ** lamb))
 
-        if phi_i <= 0:
-            return 1e20
+        if phi_i <= 0 or not np.isfinite(phi_i):
+            return NON_POSITIVE_PHI_PENALTY
 
         w_fit = ssvi_total_variance(k, theta_i, phi_i, rho)
         residuals = np.sqrt(wts) * (w_obs - w_fit)
         total_obj += float(np.sum(residuals ** 2))
         n_total += len(k)
 
+    # --- Calendar arbitrage penalty --------------------------------------
+    # Check on a coarse stress grid (not every slice pair, just neighbouring
+    # slices ordered by maturity).  A large penalty per violating point.
+    _T = np.array([data[2] for data in zip(k_all, w_all, weights_all)])
+    # Need T_all for calendar check — extract from the caller's data.
+    # We'll handle calendar check in the wrapper instead.
+
     if n_total == 0:
-        return 1e20
+        return NON_POSITIVE_PHI_PENALTY
     return total_obj
 
 
@@ -266,13 +304,78 @@ def _global_objective_wrapper(
     w_all: list[np.ndarray],
     weights_all: list[np.ndarray],
     rho: float,
+    T_all: np.ndarray,
 ) -> float:
-    """Wrapper for scipy.optimize: x = [eta, lamb]."""
+    """Wrapper for scipy.optimize: x = [eta, lamb].
+
+    Enforces domain bounds AND calendar arbitrage penalty inside the
+    objective so the optimizer avoids infeasible regions.
+    """
     eta, lamb = float(x[0]), float(x[1])
     if eta <= 0 or lamb < 0 or lamb > 1:
         return 1e20
-    return _ssvi_global_objective(theta_vec, k_all, w_all, weights_all,
-                                   rho, eta, lamb)
+    obj = _ssvi_global_objective(theta_vec, k_all, w_all, weights_all,
+                                  rho, eta, lamb)
+
+    # --- Calendar arbitrage penalty (added here so we have T_all) --------
+    cal_penalty = _calendar_penalty(theta_vec, eta, lamb, rho, T_all)
+    obj += cal_penalty
+
+    return obj
+
+
+def _calendar_penalty(
+    theta_vec: np.ndarray,
+    eta: float,
+    lamb: float,
+    rho: float,
+    T_all: np.ndarray,
+) -> float:
+    """Penalise calendar arbitrage violations in the objective.
+
+    For each ordered pair (T[i] < T[i+1]), check w(k, theta[i+1]) >=
+    w(k, theta[i]) on a coarse stress grid.  Each violating k-point
+    adds a penalty proportional to the magnitude of the violation.
+    """
+    if len(T_all) < 2:
+        return 0.0
+
+    n_slices = len(T_all)
+    # Sort by maturity
+    sort_idx = np.argsort(T_all)
+    sorted_T = T_all[sort_idx]
+    sorted_theta = theta_vec[sort_idx]
+
+    # Coarse calendar stress grid
+    k_check = np.linspace(-3.0, 3.0, 51)
+    penalty = 0.0
+
+    for i in range(n_slices - 1):
+        Ti = float(sorted_T[i])
+        Tj = float(sorted_T[i + 1])
+        theta_i = float(sorted_theta[i])
+        theta_j = float(sorted_theta[i + 1])
+
+        if theta_i <= 0 or theta_j <= 0:
+            continue
+
+        phi_i = float(eta / (theta_i ** lamb))
+        phi_j = float(eta / (theta_j ** lamb))
+
+        if phi_i <= 0 or phi_j <= 0:
+            continue
+
+        w_i = ssvi_total_variance(k_check, theta_i, phi_i, rho)
+        w_j = ssvi_total_variance(k_check, theta_j, phi_j, rho)
+
+        viol_mask = w_j < w_i
+        n_viol = int(np.sum(viol_mask))
+        if n_viol > 0:
+            # Penalty proportional to the magnitude of the worst violation
+            max_viol = float(np.max(w_i[viol_mask] - w_j[viol_mask]))
+            penalty += CALENDAR_ARBITRAGE_PENALTY_PER_POINT * n_viol * (1.0 + max_viol)
+
+    return penalty
 
 
 def calibrate_ssvi_surface(
@@ -357,7 +460,7 @@ def calibrate_ssvi_surface(
         result = minimize(
             _global_objective_wrapper,
             x0,
-            args=(theta_vec, k_all, w_all, weights_all, rho),
+            args=(theta_vec, k_all, w_all, weights_all, rho, T_all),
             method=method,
             bounds=bounds,
             tol=tol,
@@ -376,17 +479,19 @@ def calibrate_ssvi_surface(
         x0 = np.array([eta_init, lamb_init, 0.0 if rho is None else rho])
         bounds = [eta_bounds, lamb_bounds, rho_bounds]
 
-        def obj_3d(x, theta_vec, k_all, w_all, weights_all):
+        def obj_3d(x, theta_vec, k_all, w_all, weights_all, T_all):
             eta, lamb, rho = float(x[0]), float(x[1]), float(x[2])
             if eta <= 0 or lamb < 0 or lamb > 1 or rho <= -0.999 or rho >= 0.999:
                 return 1e20
-            return _ssvi_global_objective(theta_vec, k_all, w_all, weights_all,
-                                           rho, eta, lamb)
+            obj = _ssvi_global_objective(theta_vec, k_all, w_all, weights_all,
+                                          rho, eta, lamb)
+            cal_penalty = _calendar_penalty(theta_vec, eta, lamb, rho, T_all)
+            return obj + cal_penalty
 
         result = minimize(
             obj_3d,
             x0,
-            args=(theta_vec, k_all, w_all, weights_all),
+            args=(theta_vec, k_all, w_all, weights_all, T_all),
             method=method,
             bounds=bounds,
             tol=tol,
@@ -398,6 +503,21 @@ def calibrate_ssvi_surface(
         rho_opt = float(result.x[2])
         success = result.success
         message = result.message
+
+    # ------------------------------------------------------------------
+    # Validate the result against analytical constraints
+    # ------------------------------------------------------------------
+    lee_bound_ok = (eta_opt * (1.0 + abs(rho_opt))) <= 2.0 + 1e-8
+    if not lee_bound_ok:
+        if success:
+            logger.warning(
+                "SSVI fit converged but violates Lee bound: "
+                "eta*(1+|rho|) = %.4f > 2.0", eta_opt * (1.0 + abs(rho_opt))
+            )
+            # Mark as invalid — surface is not arbitrage-free
+            success = False
+            if not message:
+                message = "Lee bound violation"
 
     # ------------------------------------------------------------------
     # Build result
