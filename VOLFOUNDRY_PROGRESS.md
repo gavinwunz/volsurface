@@ -22,11 +22,11 @@ append a dated line (newest first) to the session log.
 - [x] Ensure every stochastic test has a controlled seed
 
 ### P1 — Rename volsurface → volfoundry
-- [ ] Move to `src/volfoundry/` layout (data/ iv/ svi/ arbitrage/ pricers/ surface/ cli/)
-- [ ] Mechanical import migration `volsurface.*` → `volfoundry.*` (src, tests, examples, docs, cpp, scripts)
-- [ ] `CHANGELOG.md` migration note + `docs/migration/volsurface-to-volfoundry.md`
-- [ ] No `volsurface` compatibility shim shipped
-- [ ] `python -c "import volfoundry; print(volfoundry.__version__)"` works after editable install
+- [x] Move to `src/volfoundry/` layout (data/ iv/ svi/ arbitrage/ pricers/ surface/ cli/)
+- [x] Mechanical import migration `volsurface.*` → `volfoundry.*` (src, tests, examples, docs, cpp, scripts)
+- [x] `CHANGELOG.md` migration note + `docs/migration/volsurface-to-volfoundry.md`
+- [x] No `volsurface` compatibility shim shipped
+- [x] `python -c "import volfoundry; print(volfoundry.__version__)"` works after editable install
 
 ### P2 — Modernize packaging
 - [ ] `pyproject.toml`: name volfoundry, requires-python >=3.10, MIT, authors, URLs, classifiers, keywords
@@ -127,6 +127,12 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-10: **P1 complete.** Package renamed to `volfoundry`, moved to
+  `src/volfoundry/` layout. All imports migrated (src, tests, examples, docs,
+  cpp/setup.py). pyproject.toml updated: name volfoundry, src layout,
+  classifiers, keywords, project URLs. CHANGELOG with migration note + migration
+  guide written. Old `volsurface/` tree removed. No compatibility shim. All 319
+  tests pass, editable install verified.
 - 2026-08-10: **P0 complete.** Baseline recorded (319 tests, py3.12, Linux x86_64,
   commit 27f5949). API inventory (55 public symbols), network inventory (2 HTTP
   surfaces, no import-time calls), numerics inventory (scattered tolerances, no
