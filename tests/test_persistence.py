@@ -1,4 +1,4 @@
-"""Tests for volfoundry.data.persistence — parquet I/O."""
+"""Tests for volfoundry.data.persistence --- parquet I/O with schema versioning."""
 
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from volfoundry.data.persistence import (
     snapshot_filename,
     write_snapshot,
 )
+from volfoundry.exceptions import PersistenceError
 
 
 def _make_quote(**kwargs) -> OptionQuote:
@@ -52,11 +53,15 @@ def test_snapshot_filename_uniqueness():
 
 
 def test_write_and_read_snapshot():
-    """Round-trip: write a snapshot, read it back."""
+    """Round-trip: write a snapshot atomically, read it back."""
     snap = Snapshot(
         currency="BTC",
         timestamp=datetime(2025, 3, 21, 12, 0, tzinfo=timezone.utc),
-        quotes=[_make_quote(), _make_quote(instrument_name="BTC-28MAR25-51000-C", strike=51000.0)],
+        quotes=[
+            _make_quote(),
+            _make_quote(instrument_name="BTC-28MAR25-51000-C", strike=51000.0),
+        ],
+        schema_version=1,
     )
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -70,6 +75,22 @@ def test_write_and_read_snapshot():
         # Verify no overwrite
         with pytest.raises(FileExistsError):
             write_snapshot(snap, data_dir=tmpdir)
+
+
+def test_write_snapshot_atomic():
+    """Write should succeed atomically (no partial files observable)."""
+    snap = Snapshot(
+        currency="ETH",
+        timestamp=datetime(2025, 3, 21, 12, 0, tzinfo=timezone.utc),
+        quotes=[_make_quote(underlying="ETH")],
+        schema_version=1,
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = write_snapshot(snap, data_dir=tmpdir)
+        assert path.exists()
+        # No .tmp_ files left around
+        tmp_files = list(Path(tmpdir).glob(".tmp_*"))
+        assert len(tmp_files) == 0
 
 
 def test_list_snapshots():
@@ -125,3 +146,38 @@ def test_load_snapshot_empty_dir():
     with tempfile.TemporaryDirectory() as tmpdir:
         df = load_snapshot(currency="BTC", data_dir=tmpdir)
         assert df is None
+
+
+def test_read_snapshot_file_not_found():
+    """read_snapshot raises PersistenceError on missing file."""
+    with pytest.raises(PersistenceError, match="not found"):
+        read_snapshot("/nonexistent/path.parquet")
+
+
+def test_read_snapshot_future_schema():
+    """A snapshot with a future schema version raises PersistenceError."""
+    snap = Snapshot(
+        currency="BTC",
+        timestamp=datetime(2025, 3, 21, 12, 0, tzinfo=timezone.utc),
+        quotes=[_make_quote()],
+        schema_version=999,
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = write_snapshot(snap, data_dir=tmpdir)
+        # schema_version 999 should fail validation
+        with pytest.raises(PersistenceError, match="newer than this"):
+            read_snapshot(path, validate_schema=True)
+
+
+def test_read_snapshot_skip_validation():
+    """validate_schema=False skips the version check."""
+    snap = Snapshot(
+        currency="BTC",
+        timestamp=datetime(2025, 3, 21, 12, 0, tzinfo=timezone.utc),
+        quotes=[_make_quote()],
+        schema_version=999,
+    )
+    with tempfile.TemporaryDirectory() as tmpdir:
+        path = write_snapshot(snap, data_dir=tmpdir)
+        df = read_snapshot(path, validate_schema=False)
+        assert len(df) == 1

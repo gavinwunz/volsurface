@@ -29,7 +29,7 @@ from volfoundry.arbitrage.checks import (
     validate_surface,
 )
 from volfoundry.data.fetcher import Snapshot
-from volfoundry.data.filters import clean_quotes
+from volfoundry.data.filters import clean_quotes as _clean_quotes
 from volfoundry.data.forwards import extract_forwards
 from volfoundry.iv.black_scholes import (
     OptionType,
@@ -374,45 +374,13 @@ class SurfaceBuilder:
         self, df: pd.DataFrame
     ) -> tuple[pd.DataFrame, dict[str, int]]:
         """Apply quote filters and return (cleaned_df, cleaning_stats)."""
-        raw = len(df)
-        # Track per-stage counts
-        before_zero = len(df)
-        df = df[(df["bid"] > 0) & (df["ask"] > 0)]
-        removed_zero_bid = before_zero - len(df)
-
-        before_crossed = len(df)
-        df = df[df["bid"] <= df["ask"]]
-        removed_crossed = before_crossed - len(df)
-
-        before_tte = len(df)
-        ref = pd.Timestamp.now(tz="UTC")
-        expiry = pd.to_datetime(df["expiry"], utc=True)
-        tte = (expiry - ref).dt.total_seconds() / 86400.0
-        df = df[tte >= self.min_expiry_days].copy()
-        removed_near_expiry = before_tte - len(df)
-
-        # Additional check: ensure required columns are finite
-        before_invalid = len(df)
-        df = df[
-            df["strike"].notna()
-            & df["mid"].notna()
-            & (df["mid"] > 0)
-            & df["bid"].notna()
-            & df["ask"].notna()
-        ]
-        removed_invalid = before_invalid - len(df)
-
-        retained = len(df)
-
-        stats = {
-            "raw": raw,
-            "removed_zero_bid": removed_zero_bid,
-            "removed_crossed": removed_crossed,
-            "removed_near_expiry": removed_near_expiry,
-            "removed_invalid": removed_invalid,
-            "retained": retained,
-        }
-        return df, stats
+        cleaned_df, cleaning_report = _clean_quotes(
+            df, min_days=self.min_expiry_days
+        )
+        stats = {**cleaning_report.removed_counts,
+                 "raw": cleaning_report.raw_count,
+                 "retained": cleaning_report.retained_count}
+        return cleaned_df, stats
 
     def _prepare_slices(
         self,

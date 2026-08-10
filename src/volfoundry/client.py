@@ -40,14 +40,22 @@ class DeribitClient:
     >>> print(result.surface.iv(strike=70_000, maturity=30 / 365.25))
     """
 
-    def __init__(self, timeout: int = 30) -> None:
-        self._timeout = timeout
+    def __init__(
+        self,
+        connect_timeout: float = 10,
+        read_timeout: float = 30,
+    ) -> None:
+        self._connect_timeout = connect_timeout
+        self._read_timeout = read_timeout
         self._client: Optional[DeribitPublicClient] = None
 
     def _get_client(self) -> DeribitPublicClient:
         """Lazily create the underlying client (reuses session)."""
         if self._client is None:
-            self._client = DeribitPublicClient()
+            self._client = DeribitPublicClient(
+                connect_timeout=self._connect_timeout,
+                read_timeout=self._read_timeout,
+            )
         return self._client
 
     def fetch(self, currency: str) -> Snapshot:
@@ -61,13 +69,13 @@ class DeribitClient:
         Returns
         -------
         Snapshot
-            Structured snapshot containing all quotes and metadata.
+            Structured snapshot containing all quotes, metadata, and a
+            ``cleaning_report`` attribute.
 
         Raises
         ------
-        requests.RequestException
-            On HTTP / connectivity errors.
-        RuntimeError
-            On Deribit JSON-RPC errors.
+        MarketDataError
+            On JSON-RPC errors, HTTP failures, or empty instrument lists.
+            Never returns an empty snapshot as a proxy for failure.
         """
         return self._get_client().fetch_snapshot(currency.upper())

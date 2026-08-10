@@ -15,6 +15,12 @@ surfaces with explicit numerical diagnostics and reproducible market snapshots.
 
 from volfoundry._version import __version__ as __version__
 from volfoundry.client import DeribitClient
+from volfoundry.data.fetcher import (
+    OptionQuote,
+    QuoteCleaningReport,
+    QuoteRemovalRecord,
+    Snapshot,
+)
 from volfoundry.exceptions import (
     ArbitrageViolationError,
     CalibrationConvergenceError,
@@ -47,6 +53,11 @@ __all__ = [
     "SurfaceFitResult",
     "ValidationReport",
     "OptionChain",
+    # Data types
+    "Snapshot",
+    "OptionQuote",
+    "QuoteCleaningReport",
+    "QuoteRemovalRecord",
     # Exceptions
     "VolFoundryError",
     "DataError",

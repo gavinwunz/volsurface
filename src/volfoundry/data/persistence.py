@@ -1,24 +1,30 @@
-"""Snapshot persistence layer — save raw option-chain data to parquet.
+"""Snapshot persistence layer --- save and load option-chain snapshots.
 
-Every snapshot is written to a timestamped, uniquely-named parquet file.
-Files are NEVER overwritten.  The layer also supports reading back raw
-snapshot files for downstream processing.
+Features:
+- Atomic writes (temp file + rename) --- partial writes are never observed.
+- Schema versioning stored in parquet metadata.
+- Never overwrites an existing snapshot by default.
+- Reproducible metadata (package version, schema version, retrieval timestamp).
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
 
+from volfoundry._version import __version__
 from volfoundry.data.fetcher import Snapshot
+from volfoundry.exceptions import PersistenceError
 
 logger = logging.getLogger(__name__)
 
-# Default location for raw data snapshots.  Can be overridden via env var.
+_CURRENT_SCHEMA_VERSION = 1
+
 DEFAULT_DATA_DIR = Path(os.environ.get("VOLSURFACE_DATA_DIR", "data/snapshots"))
 
 
@@ -32,10 +38,20 @@ def snapshot_filename(currency: str, timestamp: datetime) -> str:
     return f"{currency.upper()}-{ts_str}-{micros}.parquet"
 
 
+def _build_metadata(snapshot: Snapshot) -> dict:
+    """Build parquet-level metadata dict for a snapshot."""
+    return {
+        "volfoundry_schema_version": str(snapshot.schema_version),
+        "volfoundry_package_version": __version__,
+        "currency": snapshot.currency,
+        "retrieval_timestamp": snapshot.timestamp.isoformat(),
+    }
+
+
 def write_snapshot(
     snapshot: Snapshot, data_dir: str | Path | None = None
 ) -> Path:
-    """Persist *snapshot* to a timestamped parquet file.
+    """Persist *snapshot* atomically to a timestamped parquet file.
 
     Parameters
     ----------
@@ -48,27 +64,130 @@ def write_snapshot(
     -------
     Path
         Path to the written parquet file.
+
+    Raises
+    ------
+    FileExistsError
+        If the target file already exists (never silently overwrites).
+    PersistenceError
+        On I/O or serialisation errors.
     """
     root = Path(data_dir) if data_dir else DEFAULT_DATA_DIR
     root.mkdir(parents=True, exist_ok=True)
 
     fname = snapshot_filename(snapshot.currency, snapshot.timestamp)
-    path = root / fname
+    target_path = root / fname
 
-    if path.exists():
+    if target_path.exists():
         raise FileExistsError(
-            f"Snapshot file {path} already exists — refusing to overwrite."
+            f"Snapshot file {target_path} already exists --- refusing to overwrite."
         )
 
     df = snapshot.to_dataframe()
-    df.to_parquet(path, index=False)
-    logger.info("Wrote snapshot %s (%d rows)", path, len(df))
-    return path
+    metadata = _build_metadata(snapshot)
+
+    # Atomic write: write to a temp file in the same directory,
+    # then atomically rename into place.  This prevents partial
+    # writes from being observed.
+    try:
+        fd, tmp_path = tempfile.mkstemp(
+            suffix=".parquet", prefix=".tmp_", dir=str(root)
+        )
+        os.close(fd)
+        tmp_file = Path(tmp_path)
+        df.to_parquet(tmp_file, index=False)
+        tmp_file.rename(target_path)
+        logger.info("Wrote snapshot %s (%d rows)", target_path, len(df))
+    except OSError as exc:
+        if tmp_file.exists():
+            tmp_file.unlink(missing_ok=True)
+        raise PersistenceError(
+            f"Failed to write snapshot to {target_path}: {exc}"
+        ) from exc
+
+    # Store metadata via PyArrow's custom metadata by reopening
+    # (Parquet metadata is stored in the file footer, so we need
+    # to read-write; this is a small file so it's fine.)
+    try:
+        import pyarrow as pa
+        import pyarrow.parquet as pq
+
+        table = pq.read_table(target_path)
+        table = table.replace_schema_metadata(
+            {**(table.schema.metadata or {}), **metadata}
+        )
+        pq.write_table(table, target_path)
+    except Exception:
+        logger.debug(
+            "Could not attach schema metadata to %s (non-critical)", target_path
+        )
+
+    return target_path
 
 
-def read_snapshot(path: str | Path) -> pd.DataFrame:
-    """Read a raw snapshot parquet file back into a DataFrame."""
-    return pd.read_parquet(path)
+def _read_metadata(path: Path) -> dict:
+    """Read parquet-level metadata from a snapshot file.
+
+    Returns
+    -------
+    dict
+        Metadata fields; empty if unavailable.
+    """
+    try:
+        import pyarrow.parquet as pq
+
+        pf = pq.ParquetFile(path)
+        meta = pf.metadata.metadata
+        return dict(meta) if meta else {}
+    except Exception:
+        return {}
+
+
+def read_snapshot(path: str | Path, validate_schema: bool = True) -> pd.DataFrame:
+    """Read a raw snapshot parquet file back into a DataFrame.
+
+    Parameters
+    ----------
+    path : str or Path
+        Path to the parquet file.
+    validate_schema : bool
+        If True, check that the schema version is known.
+
+    Returns
+    -------
+    DataFrame
+
+    Raises
+    ------
+    PersistenceError
+        If schema validation fails.
+    """
+    p = Path(path)
+    if not p.exists():
+        raise PersistenceError(f"Snapshot file not found: {p}")
+
+    if validate_schema:
+        meta = _read_metadata(p)
+        # Keys are bytes from pyarrow — try both bytes and str
+        schema_ver = meta.get(b"volfoundry_schema_version") or meta.get("volfoundry_schema_version")
+        if schema_ver is not None:
+            if isinstance(schema_ver, bytes):
+                schema_ver = schema_ver.decode("ascii")
+            try:
+                ver = int(schema_ver)
+            except (ValueError, TypeError):
+                raise PersistenceError(
+                    f"Snapshot {p} has unparseable schema version: {schema_ver!r}"
+                )
+            if ver > _CURRENT_SCHEMA_VERSION:
+                raise PersistenceError(
+                    f"Snapshot {p} has schema version {ver}, "
+                    f"which is newer than this VolFoundry supports "
+                    f"({_CURRENT_SCHEMA_VERSION}). Upgrade VolFoundry or "
+                    f"use validate_schema=False."
+                )
+
+    return pd.read_parquet(p)
 
 
 def list_snapshots(

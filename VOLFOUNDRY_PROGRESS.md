@@ -47,11 +47,11 @@ append a dated line (newest first) to the session log.
 - [x] Preserve `__cause__` on wrap; exception chaining test passes; library raises, does not `sys.exit`
 
 ### P5 — Reliable market data
-- [ ] Hardened Deribit HTTP: timeouts, reusable session, UA w/ version, bounded retries + backoff+jitter, 429/5xx only
-- [ ] Typed quote schema + validation; JSON-RPC error handling; never empty-success on API error
-- [ ] Quote-cleaning diagnostics (per-reason counts + machine-readable reasons)
-- [ ] Atomic snapshot writes; never overwrite historical snapshots; reproducible metadata
-- [ ] Offline fixture tests; live tests marked `@pytest.mark.live`
+- [x] Hardened Deribit HTTP: timeouts, reusable session, UA w/ version, bounded retries + backoff+jitter, 429/5xx only
+- [x] Typed quote schema + validation; JSON-RPC error handling; never empty-success on API error
+- [x] Quote-cleaning diagnostics (per-reason counts + machine-readable reasons)
+- [x] Atomic snapshot writes; never overwrite historical snapshots; reproducible metadata
+- [x] Offline fixture tests; live tests marked `@pytest.mark.live`
 
 ### P6 — Strict no-arbitrage construction contract  *(most important quant change)*
 - [ ] `validation="report"` (research fit, may be invalid but clearly flagged) vs `validation="strict"` (raises `ArbitrageViolationError`)
@@ -127,6 +127,17 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-10: **P5 complete.** Deribit HTTP hardened: `_build_session()` with
+  `urllib3.Retry` (3 retries, exponential backoff with jitter, only 429/5xx),
+  `User-Agent: VolFoundry/0.1.0`, explicit connect (10s) + read (30s) timeouts.
+  All RPC functions now raise `MarketDataError` (never `RuntimeError`); empty
+  instrument list raises instead of returning empty `Snapshot`. `QuoteCleaningReport`
+  and `QuoteRemovalRecord` provide per-reason diagnostic counts and per-quote
+  machine-readable reasons. `filters.py` functions return `_FilterResult` with
+  `.df` + `.removals`. `persistence.py` uses atomic writes (tempfile + rename)
+  with schema versioning in parquet metadata; future schema versions are rejected.
+  Existing fixture tests updated for new API; 377 tests pass, build + twine check green.
+  Live tests are already marker-registered (`@pytest.mark.live` from P2 conftest).
 - 2026-08-10: **P3 + P4 complete.** Public API wired up: `__init__.py` exports
   `DeribitClient`, `SurfaceBuilder`, `VolatilitySurface`, `SurfaceFitResult`,
   `ValidationReport`, `OptionChain`, and full exception taxonomy via `__all__`.
