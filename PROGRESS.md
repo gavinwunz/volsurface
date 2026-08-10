@@ -18,11 +18,11 @@ work session: check off completed items, note what's in flight, record blockers.
 - [x] pytest coverage (32 tests)
 
 ### M2 — Implied vol inversion
-- [ ] Newton-Raphson on vega, Brenner-Subrahmanyam seed
-- [ ] Brent bracketing fallback for small |vega|
-- [ ] 1e-8 accuracy, benchmark vs py_vollib
-- [ ] docs/derivations/vega.md
-- [ ] pytest coverage
+- [x] Newton-Raphson on vega, Brenner-Subrahmanyam seed
+- [x] Brent bracketing fallback for small |vega|
+- [x] 1e-8 accuracy, benchmark vs py_vollib
+- [x] docs/derivations/vega.md
+- [x] pytest coverage (48 tests)
 
 ### M3 — Raw SVI calibration
 - [ ] Raw SVI parameterization w(k)
@@ -58,3 +58,5 @@ work session: check off completed items, note what's in flight, record blockers.
 _(append newest at top: date/time, milestone touched, what changed, blockers)_
 
 - 2026-08-10 12:00 UTC — M1 complete. Implemented Deribit JSON-RPC client (fetcher.py), timestamped parquet persistence (persistence.py), put-call parity forward extraction via OLS regression (forwards.py), and quote filters (filters.py). 32 pytest tests all passing. Created docs/derivations/ and reports/ directories.
+
+- 2026-08-10 13:30 UTC — M2 complete. Black-76 pricing (black_scholes.py) with Newton-Raphson IV solver, Brent bracketing fallback, Brenner-Subrahmanyam seed, and unified `implied_volatility()` entry point. Fixed NR convergence ordering (sigma change before price diff) for 1e-8 accuracy on deep ITM. Fixed Brent bracket-widening bug (incorrect for-else with early break). Rewrote py_vollib benchmark test for vollib API compatibility. 48 pytest tests passing (80 total). Wrote docs/derivations/vega.md with full first-principles derivation.
