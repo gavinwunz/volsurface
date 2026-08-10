@@ -32,12 +32,12 @@ work session: check off completed items, note what's in flight, record blockers.
 - [x] pytest coverage (37 tests)
 
 ### M4 — No-arbitrage enforcement
-- [ ] Butterfly g(k) >= 0 check across slices
-- [ ] Calendar monotonicity of total variance
-- [ ] g(k) plots per slice into reports/
-- [ ] Breeden-Litzenberger density non-negativity cross-check
-- [ ] Reject + log violated fits (never silently accept)
-- [ ] hypothesis property-based tests
+- [x] Butterfly g(k) >= 0 check across slices
+- [x] Calendar monotonicity of total variance
+- [x] g(k) plots per slice into reports/
+- [x] Breeden-Litzenberger density non-negativity cross-check
+- [x] Reject + log violated fits (never silently accept)
+- [x] hypothesis property-based tests
 
 ### M5 — Pricers + benchmark
 - [ ] Black-Scholes
@@ -56,6 +56,8 @@ work session: check off completed items, note what's in flight, record blockers.
 
 ## Session log
 _(append newest at top: date/time, milestone touched, what changed, blockers)_
+
+- 2026-08-10 17:30 UTC — M4 complete. Butterfly g(k) check, calendar monotonicity, Breeden-Litzenberger density cross-check using proper non-uniform 3-point finite-difference formula, full slice/surface validation with rejection logging. 31 arbitrage tests (including hypothesis property-based tests over randomized SVI parameter draws). g(k) plotting to reports/ via matplotlib Agg backend, human-readable validation report writer. Fixed BL density import (black76_price + OptionType vs nonexistent black76_call), corrected non-uniform FD formula (previous h_avg approximation was inaccurate for log-spaced grids), fixed hypothesis symmetry test (g(k) symmetric around k=0 only when both rho=0 AND m=0), replaced false property "g(k) non-negative near ATM for all valid SVI" with test that g(k) is well-behaved (finite, bounded magnitude). Wrote docs/derivations/arbitrage.md with full derivations of butterfly g(k), calendar monotonicity, and BL density formulas including limit analysis.
 
 - 2026-08-10 12:00 UTC — M1 complete. Implemented Deribit JSON-RPC client (fetcher.py), timestamped parquet persistence (persistence.py), put-call parity forward extraction via OLS regression (forwards.py), and quote filters (filters.py). 32 pytest tests all passing. Created docs/derivations/ and reports/ directories.
 
