@@ -282,18 +282,22 @@ class TestHypothesisButterfly:
     def test_g_symmetric_for_rho_zero(self, params):
         """When rho=0 and m=0, g(k) is symmetric around k=0.
 
-        With rho=0, w(k) depends only on (k-m)^2, making w'(k) odd and
-        w''(k) even around k=m.  When additionally m=0, g(k) should be
-        symmetric: g(-k) = g(k).
+        With rho=0 and m=0, the SVI kernel reduces to w(k) =
+        a + b*sqrt(k^2 + sigma^2), which is even in k.  Then w' is odd
+        and w'' is even, making every term in g(k) even: g(-k) = g(k).
         """
         assume(abs(params.rho) < 1e-10)
-        assume(abs(params.m) < 1e-10)
+        # Force m = 0 exactly — the symmetry only holds at m = 0 because
+        # term1 = (1 - k w'/(2w))^2 contains an explicit k factor.
+        params_zero_m = SviParams(
+            a=params.a, b=params.b, rho=0.0, m=0.0, sigma=params.sigma
+        )
         n = 100
         ks = np.linspace(-2.0, 2.0, n)
-        g_vals = butterfly_g(ks, params, T=0.25)
+        g_vals = butterfly_g(ks, params_zero_m, T=0.25)
         mid = n // 2
         left = g_vals[:mid]
-        right_rev = g_vals[-1:mid-1:-1] if mid > 0 else g_vals[:0]
+        right_rev = g_vals[-1:mid-1:-1]
         assert len(left) == len(right_rev), (
             f"shape mismatch: left={left.shape}, right_rev={right_rev.shape}"
         )
