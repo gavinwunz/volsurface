@@ -109,25 +109,39 @@ def _rpc(method: str, params: dict, session: Optional[requests.Session] = None) 
 def _batch_rpc(
     calls: list[tuple[str, dict]], session: Optional[requests.Session] = None
 ) -> list[dict]:
-    """Send multiple JSON-RPC calls in one HTTP request.  Returns results in order."""
+    """Send multiple JSON-RPC calls in one HTTP request.  Returns results in order.
+
+    Deribit's public HTTP endpoint has, at times, rejected JSON-RPC 2.0 batch
+    arrays with ``bad_request``/``invalid json``.  If the single batched POST
+    fails for any reason, we transparently fall back to issuing the calls
+    sequentially so ``fetch_snapshot`` keeps working against the live API.
+    """
     s = session or requests.Session()
     payload = [
         {"jsonrpc": "2.0", "method": m, "params": p, "id": i}
         for i, (m, p) in enumerate(calls)
     ]
-    resp = s.post(DERIBIT_REST_URL, json=payload, timeout=REQUEST_TIMEOUT)
-    resp.raise_for_status()
-    results = resp.json()
-    if isinstance(results, dict):
-        # API returned a single response: treat as first item
-        results = [results]
-    results.sort(key=lambda r: r.get("id", 0))
-    out = []
-    for r in results:
-        if "error" in r:
-            raise RuntimeError(f"Deribit batch error: {r['error']}")
-        out.append(r.get("result"))
-    return out
+    try:
+        resp = s.post(DERIBIT_REST_URL, json=payload, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        results = resp.json()
+        if isinstance(results, dict):
+            # API returned a single response: treat as first item
+            results = [results]
+        results.sort(key=lambda r: r.get("id", 0))
+        out = []
+        for r in results:
+            if "error" in r:
+                raise RuntimeError(f"Deribit batch error: {r['error']}")
+            out.append(r.get("result"))
+        return out
+    except (requests.RequestException, RuntimeError, ValueError) as exc:
+        logger.warning(
+            "Batch RPC failed (%s); falling back to sequential requests for %d calls",
+            exc,
+            len(calls),
+        )
+        return [_rpc(m, p, s) for m, p in calls]
 
 
 # ---------------------------------------------------------------------------

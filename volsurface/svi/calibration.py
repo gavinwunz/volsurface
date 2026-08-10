@@ -149,8 +149,11 @@ def _inner_lls(
 
     beta0, beta1, beta2 = float(beta[0]), float(beta[1]), float(beta[2])
 
-    # Recover a, b, rho with constraints
-    a = max(beta0, 0.0)
+    # Recover a, b, rho with constraints.
+    # Floor ``a`` at a tiny positive epsilon rather than 0.0: SviParams requires
+    # a > 0, and on real (OTM-only) smiles the unconstrained intercept beta0 can
+    # land at or below zero, which would otherwise raise inside the optimizer.
+    a = max(beta0, 1e-8)
     b = max(beta2, 0.0)
 
     # Enforce |beta1| < beta2 for valid rho in (-1, 1)

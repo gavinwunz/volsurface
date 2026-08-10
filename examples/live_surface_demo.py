@@ -205,18 +205,29 @@ def calibrate_currency(currency: str):
     slices.sort(key=lambda s: s["T"])
 
     # ---- Raw SVI per expiry ------------------------------------------------
+    good_slices = []
     for s in slices:
         weights = build_vega_weights(
             s["k"], s["T"], s["F"], s["r"],
             sigma_guess=float(np.median(s["iv"])),
             option_type_strs=s["otype"],
         )
-        res = calibrate_svi_slice(s["k"], s["w"], s["T"], weights=weights)
+        try:
+            res = calibrate_svi_slice(s["k"], s["w"], s["T"], weights=weights)
+        except Exception as exc:  # pragma: no cover - defensive on live data
+            print(f"  skipping {pd.Timestamp(s['expiry']).date()} slice "
+                  f"(SVI calibration failed: {exc})", flush=True)
+            continue
         s["svi"] = res
         s["weights"] = weights
         # RMSE in vol points (implied-vol space), the intuitive units.
         iv_fit = svi_implied_vol(s["k"], res.params, s["T"])
         s["rmse_vol"] = float(np.sqrt(np.mean((s["iv"] - iv_fit) ** 2)))
+        good_slices.append(s)
+
+    slices = good_slices
+    if len(slices) < MIN_USABLE_EXPIRIES:
+        return None
 
     # ---- Global SSVI surface ----------------------------------------------
     slices_data = [(s["k"], s["w"], s["T"]) for s in slices]
