@@ -1,5 +1,10 @@
 # Build Progress
 
+> **Phase 1 (M1–M6) is complete.** Production upgrade work (VolFoundry rename,
+> packaging, release) now tracks in `VOLFOUNDRY_PROGRESS.md`, spec in
+> `VOLFOUNDRY_PRODUCTION_PLAN.md`. This file is the historical phase-1 record —
+> do not regress it.
+
 This file is the single source of truth for build state. Update it after every
 work session: check off completed items, note what's in flight, record blockers.
 
