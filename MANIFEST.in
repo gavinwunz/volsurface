@@ -1,0 +1,20 @@
+# Include documentation and examples in source distribution
+include MANIFEST.in
+include LICENSE
+include README.md
+include CHANGELOG.md
+include SPEC.md
+
+# Documentation
+recursive-include docs *.md
+recursive-include docs *.png
+recursive-include docs *.svg
+
+# C++ extension source (not required for pure-Python install)
+recursive-include cpp *.cpp *.h CMakeLists.txt *.py
+
+# Examples
+recursive-include examples *.py
+
+# Derivations
+recursive-include docs/derivations *.md

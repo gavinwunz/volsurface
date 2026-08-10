@@ -13,7 +13,7 @@ surfaces with explicit numerical diagnostics and reproducible market snapshots.
     print(result.validation.is_valid)
 """
 
-__version__ = "0.0.1"
+from volfoundry._version import __version__ as __version__
 
 # After the P3 milestone, this module will export a curated public API.
 # For now, the internal subpackage modules remain directly importable.

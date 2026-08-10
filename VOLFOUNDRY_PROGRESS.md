@@ -29,11 +29,11 @@ append a dated line (newest first) to the session log.
 - [x] `python -c "import volfoundry; print(volfoundry.__version__)"` works after editable install
 
 ### P2 — Modernize packaging
-- [ ] `pyproject.toml`: name volfoundry, requires-python >=3.10, MIT, authors, URLs, classifiers, keywords
-- [ ] Extras: [plot] [dev] [docs] [benchmark]; benchmark-only deps (QuantLib/py_vollib) out of base
-- [ ] One canonical version source; `__version__` matches build metadata; bump to 0.1.0
-- [ ] `python -m build` + `twine check dist/*`; wheel AND sdist install in clean venvs
-- [ ] Base install needs no C++ compiler, no QuantLib/py_vollib/pytest/hypothesis
+- [x] `pyproject.toml`: name volfoundry, requires-python >=3.10, MIT, authors, URLs, classifiers, keywords
+- [x] Extras: [plot] [dev] [docs] [benchmark]; benchmark-only deps (QuantLib/py_vollib) out of base
+- [x] One canonical version source; `__version__` matches build metadata; bump to 0.1.0
+- [x] `python -m build` + `twine check dist/*`; wheel AND sdist install in clean venvs
+- [x] Base install needs no C++ compiler, no QuantLib/py_vollib/pytest/hypothesis
 
 ### P3 — Small stable public API
 - [ ] High-level `DeribitClient`, `SurfaceBuilder`, `VolatilitySurface`, `ValidationReport`
@@ -127,6 +127,14 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-10: **P2 complete.** pyproject.toml overhauled: license as SPDX string,
+  matplotlib moved to [plot] extra, [docs] extra added, maintainers + Changelog
+  URL. Version bumped to 0.1.0, canonical source in `_version.py`. MANIFEST.in
+  added (docs, cpp, examples, CHANGELOG in sdist). py.typed marker added. CLI
+  stub with volfoundry entry point. conftest.py registers pytest markers. Wheel
+  and sdist both install cleanly in separate venvs. Base wheel has 0 extra deps
+  (no matplotlib/QuantLib/pytest/hypothesis/C++ compiler needed). All 319 tests
+  pass, build + twine check green.
 - 2026-08-10: **P1 complete.** Package renamed to `volfoundry`, moved to
   `src/volfoundry/` layout. All imports migrated (src, tests, examples, docs,
   cpp/setup.py). pyproject.toml updated: name volfoundry, src layout,

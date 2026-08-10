@@ -4,12 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "volfoundry"
-version = "0.0.1"
+version = "0.1.0"
 description = "Volatility surface construction, calibration, arbitrage diagnostics, and options pricing"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [{ name = "Gavinwunz" }]
+maintainers = [{ name = "Gavinwunz" }]
 keywords = [
     "quantitative-finance",
     "options-pricing",
@@ -27,7 +29,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Financial and Insurance Industry",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -42,7 +43,6 @@ dependencies = [
     "pandas>=2.1",
     "pyarrow>=14",
     "requests>=2.31",
-    "matplotlib>=3.8",
 ]
 
 [project.urls]
@@ -50,8 +50,12 @@ Homepage = "https://github.com/gavinwunz/volsurface"
 Documentation = "https://github.com/gavinwunz/volsurface"
 Repository = "https://github.com/gavinwunz/volsurface"
 Issues = "https://github.com/gavinwunz/volsurface/issues"
+Changelog = "https://github.com/gavinwunz/volsurface/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+plot = [
+    "matplotlib>=3.8",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=4.0",
@@ -59,14 +63,30 @@ dev = [
     "py_vollib>=1.0.1",
     "ruff>=0.5",
 ]
+docs = [
+    "matplotlib>=3.8",
+]
 benchmark = [
     "QuantLib-Python>=1.35",
     "py_vollib>=1.0.1",
 ]
 
+[project.scripts]
+volfoundry = "volfoundry.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+volfoundry = ["py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+markers = [
+    "unit: Fast deterministic unit tests (default CI suite)",
+    "integration: Tests that combine multiple modules",
+    "live: Tests requiring live Deribit network access",
+    "slow: Tests that take significantly longer than the typical unit",
+    "benchmark: Performance benchmarks (may require optional deps)",
+]
