@@ -1,4 +1,4 @@
-"""Build the volsurface C++ extension via pybind11.
+"""Build the VolFoundry C++ extension via pybind11.
 
 Usage:
     python cpp/setup.py build_ext --inplace
@@ -13,7 +13,7 @@ from pybind11.setup_helpers import Pybind11Extension, build_ext
 cpp_dir = Path(__file__).resolve().parent
 ext_modules = [
     Pybind11Extension(
-        "volsurface.pricers._core",
+        "volfoundry.pricers._core",
         [str(cpp_dir / "black_scholes.cpp")],
         cxx_std=17,
         extra_compile_args=["-O3", "-ffast-math"],

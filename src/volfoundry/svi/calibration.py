@@ -37,7 +37,7 @@ import numpy as np
 from numpy.linalg import LinAlgError
 from scipy.optimize import minimize
 
-from volsurface.svi.parameterization import (
+from volfoundry.svi.parameterization import (
     SviParams,
     clip_params_to_valid,
     svi_total_variance,
@@ -378,7 +378,7 @@ def build_vega_weights(
     ndarray
         Normalised vega weights (sum to n).
     """
-    from volsurface.iv.black_scholes import black76_vega, OptionType
+    from volfoundry.iv.black_scholes import black76_vega, OptionType
 
     n = len(k)
     weights = np.empty(n)

@@ -25,7 +25,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-from volsurface.svi.parameterization import (
+from volfoundry.svi.parameterization import (
     SviParams,
     svi_first_derivative,
     svi_second_derivative,
@@ -255,7 +255,7 @@ def breeden_litzenberger_density(
         Approximate risk-neutral density at each strike (interior points
         only — endpoints are NaN).
     """
-    from volsurface.iv.black_scholes import black76_price, OptionType
+    from volfoundry.iv.black_scholes import black76_price, OptionType
 
     n = len(K)
     if n < 3:

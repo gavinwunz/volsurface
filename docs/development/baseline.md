@@ -1,7 +1,7 @@
 # Pre-VolFoundry Production Baseline
 
 Recorded before the P1 rename and any refactoring. This is the snapshot of
-the `volsurface` package at the start of the VolFoundry production upgrade.
+the `volfoundry` package at the start of the VolFoundry production upgrade.
 
 ## System
 
@@ -12,7 +12,7 @@ the `volsurface` package at the start of the VolFoundry production upgrade.
 | OS                | Linux-6.17.0-1022-azure-x86_64-with-glibc2.39 |
 | Architecture      | x86_64 |
 | Git branch        | `main` |
-| Git remote        | `https://github.com/gavinwunz/volsurface` |
+| Git remote        | `https://github.com/gavinwunz/volfoundry` |
 
 ## Test suite
 
@@ -46,8 +46,8 @@ Time: ~4.5 s
 | Field           | Value |
 |-----------------|-------|
 | Build backend   | setuptools.build_meta |
-| Wheel name      | `volsurface-0.0.1-py3-none-any.whl` |
-| Sdist name      | `volsurface-0.0.1.tar.gz` |
+| Wheel name      | `volfoundry-0.0.1-py3-none-any.whl` |
+| Sdist name      | `volfoundry-0.0.1.tar.gz` |
 | Version         | 0.0.1 |
 | Requires-Python | >=3.10 |
 | License         | MIT |
@@ -70,7 +70,7 @@ Sample diagnostic PNGs from a live run are committed at:
 
 ## C++ extension
 
-The C++ hot path (`volsurface/pricers/_core.cpython-312-x86_64-linux-gnu.so`)
+The C++ hot path (`volfoundry/pricers/_core.cpython-312-x86_64-linux-gnu.so`)
 is built via pybind11. It provides vectorised Black-76 price + Greeks.
 Import failure falls back gracefully to the pure-Python path.
 Benchmark claims (~3× vs QuantLib) are from a specific run on this machine
@@ -116,7 +116,7 @@ marketing.
 5. `print()` calls exist only in the example script and benchmark test
    output; zero in library code.
 6. No `TODO` or `FIXME` markers found in source code.
-7. Package version 0.0.1 appears in `pyproject.toml` and `volsurface/__init__.py`
+7. Package version 0.0.1 appears in `pyproject.toml` and `volfoundry/__init__.py`
    (two locations — not a single source of truth).
 8. `pyproject.toml` has no extras groups — all dev deps lumped in `[project.optional-dependencies] dev`.
 9. No pytest markers registered in configuration.

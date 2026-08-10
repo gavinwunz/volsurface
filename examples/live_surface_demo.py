@@ -2,7 +2,7 @@
 """Live Deribit volatility-surface demo.
 
 Pulls a LIVE public-API snapshot from Deribit (no auth), runs the full
-volsurface pipeline end to end, and writes diagnostic PNGs to ``reports/``:
+volfoundry pipeline end to end, and writes diagnostic PNGs to ``reports/``:
 
     1. 3D SSVI implied-vol surface            (reports/live_surface_3d.png)
     2. Skew / term-structure                  (reports/live_skew_term_structure.png)
@@ -36,21 +36,21 @@ import numpy as np
 import pandas as pd
 import requests
 
-from volsurface.data.fetcher import DeribitPublicClient, DERIBIT_REST_URL
-from volsurface.data.persistence import write_snapshot
-from volsurface.data.filters import clean_quotes
-from volsurface.data.forwards import extract_forwards
-from volsurface.iv.black_scholes import implied_volatility, OptionType
-from volsurface.svi.calibration import calibrate_svi_slice, build_vega_weights
-from volsurface.svi.parameterization import svi_implied_vol
-from volsurface.surface.calibration import calibrate_ssvi_surface
-from volsurface.surface.ssvi import ssvi_to_raw_svi
-from volsurface.surface.plotting import (
+from volfoundry.data.fetcher import DeribitPublicClient, DERIBIT_REST_URL
+from volfoundry.data.persistence import write_snapshot
+from volfoundry.data.filters import clean_quotes
+from volfoundry.data.forwards import extract_forwards
+from volfoundry.iv.black_scholes import implied_volatility, OptionType
+from volfoundry.svi.calibration import calibrate_svi_slice, build_vega_weights
+from volfoundry.svi.parameterization import svi_implied_vol
+from volfoundry.surface.calibration import calibrate_ssvi_surface
+from volfoundry.surface.ssvi import ssvi_to_raw_svi
+from volfoundry.surface.plotting import (
     plot_3d_surface,
     plot_skew_term_structure,
     plot_gk_diagnostics,
 )
-from volsurface.arbitrage.checks import (
+from volfoundry.arbitrage.checks import (
     check_slice_arbitrage,
     calendar_monotonicity,
     find_calendar_violations,

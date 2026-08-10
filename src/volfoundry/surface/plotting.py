@@ -22,17 +22,17 @@ matplotlib.use("Agg")  # Headless-safe
 import matplotlib.pyplot as plt
 import numpy as np
 
-from volsurface.arbitrage.checks import (
+from volfoundry.arbitrage.checks import (
     ArbitrageCheckResult,
     butterfly_g,
     calendar_monotonicity,
 )
-from volsurface.surface.ssvi import (
+from volfoundry.surface.ssvi import (
     SsviParams,
     ssvi_implied_vol,
     ssvi_total_variance,
 )
-from volsurface.svi.parameterization import (
+from volfoundry.svi.parameterization import (
     SviParams,
     svi_first_derivative,
 )

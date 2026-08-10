@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from volsurface.data.fetcher import Snapshot
+from volfoundry.data.fetcher import Snapshot
 
 logger = logging.getLogger(__name__)
 

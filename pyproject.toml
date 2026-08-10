@@ -3,13 +3,39 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "volsurface"
+name = "volfoundry"
 version = "0.0.1"
-description = "Arbitrage-free implied volatility surface construction for crypto options"
+description = "Volatility surface construction, calibration, arbitrage diagnostics, and options pricing"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "Gavinwunz" }]
+keywords = [
+    "quantitative-finance",
+    "options-pricing",
+    "implied-volatility",
+    "volatility-surface",
+    "volatility-smile",
+    "svi",
+    "ssvi",
+    "derivatives",
+    "deribit",
+    "crypto-options",
+    "black-76",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Mathematics",
+]
 dependencies = [
     "numpy>=1.26",
     "scipy>=1.11",
@@ -19,17 +45,27 @@ dependencies = [
     "matplotlib>=3.8",
 ]
 
+[project.urls]
+Homepage = "https://github.com/gavinwunz/volsurface"
+Documentation = "https://github.com/gavinwunz/volsurface"
+Repository = "https://github.com/gavinwunz/volsurface"
+Issues = "https://github.com/gavinwunz/volsurface/issues"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=4.0",
     "hypothesis>=6.90",
     "py_vollib>=1.0.1",
     "ruff>=0.5",
 ]
+benchmark = [
+    "QuantLib-Python>=1.35",
+    "py_vollib>=1.0.1",
+]
 
 [tool.setuptools.packages.find]
-where = ["."]
-include = ["volsurface*"]
+where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -1,7 +1,7 @@
 """Black-Scholes / Black-76 pricer with full Greeks.
 
 Implements European call and put pricing under the Black-76 (futures/forwards)
-formulation, which is the natural setting for the volsurface pipeline since
+formulation, which is the natural setting for the VolFoundry pipeline since
 forwards are extracted from put-call parity.
 
 Formulas
@@ -37,7 +37,7 @@ from typing import Optional, Union
 
 import numpy as np
 
-from volsurface.iv.black_scholes import (  # shared primitives
+from volfoundry.iv.black_scholes import (  # shared primitives
     OptionType,
     SQRT2PI,
     black76_price,
@@ -185,7 +185,7 @@ def black76_all_greeks(
         price, delta, gamma, vega, theta, rho
 
     All Greeks are the standard *discounted* sensitivities consistent with
-    the existing black76_vega / black76_price in volsurface.iv.
+    the existing black76_vega / black76_price in volfoundry.iv.
     Delta and gamma are per unit of F (not per unit of df).
     Theta is the time-decay including discounting.
     """

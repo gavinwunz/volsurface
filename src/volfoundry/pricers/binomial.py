@@ -44,7 +44,7 @@ import math
 from enum import Enum
 from typing import Optional
 
-from volsurface.iv.black_scholes import OptionType
+from volfoundry.iv.black_scholes import OptionType
 
 
 def crr_price(

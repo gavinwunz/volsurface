@@ -5,7 +5,7 @@ or depends on external state.
 
 ## HTTP / Network calls
 
-### `volsurface/data/fetcher.py`
+### `volfoundry/data/fetcher.py`
 
 | Location | Function | Method | Target | Notes |
 |----------|----------|--------|--------|-------|
@@ -29,12 +29,12 @@ or depends on external state.
 
 ### Import-time network checks
 
-**None.** Importing `volsurface` or any submodule does not call any external API.
+**None.** Importing `volfoundry` or any submodule does not call any external API.
 All HTTP activity requires explicit user invocation of `DeribitPublicClient` methods.
 
 ## Filesystem I/O
 
-### `volsurface/data/persistence.py`
+### `volfoundry/data/persistence.py`
 
 | Function | Operation | Format | Notes |
 |----------|-----------|--------|-------|

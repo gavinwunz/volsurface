@@ -8,12 +8,12 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
-from volsurface.arbitrage.checks import (
+from volfoundry.arbitrage.checks import (
     ArbitrageCheckResult,
     SliceValidationReport,
     butterfly_g,
 )
-from volsurface.svi.parameterization import SviParams, svi_total_variance
+from volfoundry.svi.parameterization import SviParams, svi_total_variance
 
 logger = logging.getLogger(__name__)
 

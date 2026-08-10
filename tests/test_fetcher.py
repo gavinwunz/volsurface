@@ -1,4 +1,4 @@
-"""Tests for volsurface.data.fetcher — Deribit public API client."""
+"""Tests for volfoundry.data.fetcher — Deribit public API client."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from volsurface.data.fetcher import (
+from volfoundry.data.fetcher import (
     DeribitPublicClient,
     Snapshot,
     _rpc,
@@ -130,7 +130,7 @@ def test_fetch_tickers_batches():
     assert tickers[0]["instrument_name"] == "BTC-28MAR25-50000-C"
 
 
-@patch("volsurface.data.fetcher._rpc")
+@patch("volfoundry.data.fetcher._rpc")
 def test_fetch_snapshot_integration(mock_rpc):
     """Full snapshot fetch end-to-end with mocked RPC."""
     mock_rpc.side_effect = [
@@ -175,7 +175,7 @@ def test_snapshot_to_dataframe():
 
 
 def test_fetch_snapshot_convenience():
-    with patch("volsurface.data.fetcher.DeribitPublicClient.fetch_snapshot") as mock_fs:
+    with patch("volfoundry.data.fetcher.DeribitPublicClient.fetch_snapshot") as mock_fs:
         mock_fs.return_value = Snapshot(currency="ETH", timestamp=datetime.now(timezone.utc))
         snap = fetch_snapshot("ETH")
         assert snap.currency == "ETH"
@@ -183,7 +183,7 @@ def test_fetch_snapshot_convenience():
 
 def test_quote_fields_complete():
     """Verify all OptionQuote fields are correctly mapped from raw data."""
-    from volsurface.data.fetcher import OptionQuote
+    from volfoundry.data.fetcher import OptionQuote
 
     q = OptionQuote(
         instrument_name="BTC-28MAR25-50000-C",

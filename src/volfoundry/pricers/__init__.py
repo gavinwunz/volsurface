@@ -1,4 +1,4 @@
-"""volsurface.pricers — option pricing engines.
+"""volfoundry.pricers — option pricing engines.
 
 Provides three complementary pricing engines for European and American options
 under the Black-76 (forwards/futures) formulation:
@@ -17,12 +17,12 @@ under the Black-76 (forwards/futures) formulation:
                      in a single pass for maximum throughput.
 
 All pricers operate on the forward price F (not spot S), consistent with the
-rest of the volsurface pipeline.
+rest of the VolFoundry pipeline.
 """
 
 from __future__ import annotations
 
-from volsurface.pricers.black_scholes import (
+from volfoundry.pricers.black_scholes import (
     OptionType,
     black76_all_greeks,
     black76_delta,
@@ -37,8 +37,8 @@ from volsurface.pricers.black_scholes import (
     parity_check_put,
     price_and_greeks_vectorized,
 )
-from volsurface.pricers.binomial import crr_greeks, crr_price
-from volsurface.pricers.monte_carlo import (
+from volfoundry.pricers.binomial import crr_greeks, crr_price
+from volfoundry.pricers.monte_carlo import (
     mc_price,
     mc_price_with_confidence,
 )
@@ -46,7 +46,7 @@ from volsurface.pricers.monte_carlo import (
 # The C++ extension is loaded when available; gracefully degrade to pure
 # Python otherwise (the Python implementations cover the same interface).
 try:
-    from volsurface.pricers._core import (  # noqa: F401
+    from volfoundry.pricers._core import (  # noqa: F401
         black76_price as _cpp_black76_price,
         black76_price_greeks_vectorized as _cpp_black76_price_greeks_vectorized,
     )

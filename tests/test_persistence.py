@@ -1,4 +1,4 @@
-"""Tests for volsurface.data.persistence — parquet I/O."""
+"""Tests for volfoundry.data.persistence — parquet I/O."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from volsurface.data.fetcher import OptionQuote, Snapshot
-from volsurface.data.persistence import (
+from volfoundry.data.fetcher import OptionQuote, Snapshot
+from volfoundry.data.persistence import (
     list_snapshots,
     load_snapshot,
     read_snapshot,

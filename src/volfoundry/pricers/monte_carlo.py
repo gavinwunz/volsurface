@@ -44,7 +44,7 @@ from typing import Optional, Tuple
 
 import numpy as np
 
-from volsurface.iv.black_scholes import OptionType, black76_price, norm_cdf
+from volfoundry.iv.black_scholes import OptionType, black76_price, norm_cdf
 
 
 def _generate_paths(

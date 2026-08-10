@@ -1,9 +1,9 @@
 # Public API Inventory
 
-Generated from the `volsurface` package at commit `27f5949`. All symbols
+Generated from the `volfoundry` package at commit `27f5949`. All symbols
 accessible from each top-level subpackage.
 
-## `volsurface.data` — market data, persistence, cleaning, forwards
+## `volfoundry.data` — market data, persistence, cleaning, forwards
 
 Exported via `__init__.py`.
 
@@ -25,9 +25,9 @@ Exported via `__init__.py`.
 | `read_snapshot` | function | `data.persistence` | Read a specific snapshot file |
 | `write_snapshot` | function | `data.persistence` | Persist snapshot to timestamped parquet |
 
-## `volsurface.iv` — implied volatility and Black-76 pricing
+## `volfoundry.iv` — implied volatility and Black-76 pricing
 
-`__init__.py` is empty (no re-exports). Users import from `volsurface.iv.black_scholes`.
+`__init__.py` is empty (no re-exports). Users import from `volfoundry.iv.black_scholes`.
 
 | Symbol | Kind | Module | Description |
 |--------|------|--------|-------------|
@@ -39,7 +39,7 @@ Exported via `__init__.py`.
 | `norm_pdf` | function | `iv.black_scholes` | Standard normal PDF |
 | `brenner_subrahmanyam_seed` | function | `iv.black_scholes` | Approximate IV seed |
 
-## `volsurface.pricers` — pricing engines
+## `volfoundry.pricers` — pricing engines
 
 Fully exported via `__init__.py` with `__all__`.
 
@@ -64,7 +64,7 @@ Fully exported via `__init__.py` with `__all__`.
 | `mc_price_with_confidence` | function | `pricers.monte_carlo` | MC with 95% CI |
 | `_HAS_CPP` | bool | `pricers.__init__` | Whether C++ extension loaded |
 
-## `volsurface.svi` — SVI parameterization and calibration
+## `volfoundry.svi` — SVI parameterization and calibration
 
 `__init__.py` is empty.
 
@@ -82,7 +82,7 @@ Fully exported via `__init__.py` with `__all__`.
 | `build_vega_weights` | function | `svi.calibration` | Vega-proportional observation weights |
 | `build_inverse_spread_weights` | function | `svi.calibration` | Inverse bid-ask spread weights |
 
-## `volsurface.surface` — SSVI surface construction
+## `volfoundry.surface` — SSVI surface construction
 
 `__init__.py` is empty.
 
@@ -103,7 +103,7 @@ Fully exported via `__init__.py` with `__all__`.
 | `plot_iv_smiles` | function | `surface.plotting` | IV smile cross-section overlay |
 | `save_surface_diagnostics` | function | `surface.plotting` | Write full diagnostic PNG set |
 
-## `volsurface.arbitrage` — no-arbitrage validation
+## `volfoundry.arbitrage` — no-arbitrage validation
 
 `__init__.py` is empty.
 
@@ -124,7 +124,7 @@ Fully exported via `__init__.py` with `__all__`.
 | `write_validation_report` | function | `arbitrage.plotting` | Human-readable validation text |
 | `save_arbitrage_diagnostics` | function | `arbitrage.plotting` | Full diagnostic output |
 
-## Root `volsurface`
+## Root `volfoundry`
 
 | Symbol | Kind | Description |
 |--------|------|-------------|

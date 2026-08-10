@@ -4,7 +4,7 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 ## Implied volatility inversion
 
-`volsurface/iv/black_scholes.py` — `implied_volatility()`
+`volfoundry/iv/black_scholes.py` — `implied_volatility()`
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
@@ -16,7 +16,7 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 ## SVI calibration
 
-`volsurface/svi/calibration.py` — `calibrate_svi_slice()`
+`volfoundry/svi/calibration.py` — `calibrate_svi_slice()`
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
@@ -35,7 +35,7 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 ## SSVI global calibration
 
-`volsurface/surface/calibration.py` — `calibrate_ssvi_surface()`
+`volfoundry/surface/calibration.py` — `calibrate_ssvi_surface()`
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
@@ -53,7 +53,7 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 ## SVI parameter validation
 
-`volsurface/svi/parameterization.py` — `SviParams.__post_init__()`
+`volfoundry/svi/parameterization.py` — `SviParams.__post_init__()`
 
 | Constraint | Range | Enforced? |
 |------------|-------|-----------|
@@ -65,7 +65,7 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 ## Butterfly arbitrage check
 
-`volsurface/arbitrage/checks.py` — `butterfly_is_arbitrage_free()`
+`volfoundry/arbitrage/checks.py` — `butterfly_is_arbitrage_free()`
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
@@ -88,7 +88,7 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 ## Monte Carlo
 
-`volsurface/pricers/monte_carlo.py` — `mc_price()`
+`volfoundry/pricers/monte_carlo.py` — `mc_price()`
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
@@ -102,7 +102,7 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 ## CRR binomial
 
-`volsurface/pricers/binomial.py`
+`volfoundry/pricers/binomial.py`
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|

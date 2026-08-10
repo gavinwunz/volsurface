@@ -1,4 +1,4 @@
-"""Tests for volsurface.pricers — Black-Scholes greeks, CRR binomial, Monte Carlo.
+"""Tests for volfoundry.pricers — Black-Scholes greeks, CRR binomial, Monte Carlo.
 
 Covers:
 - Black-76 full Greeks (delta, gamma, vega, theta, rho) correctness and put-call parity
@@ -16,12 +16,12 @@ import time
 import numpy as np
 import pytest
 
-from volsurface.iv.black_scholes import (
+from volfoundry.iv.black_scholes import (
     OptionType,
     black76_price,
     black76_vega,
 )
-from volsurface.pricers.black_scholes import (
+from volfoundry.pricers.black_scholes import (
     black76_all_greeks,
     black76_delta,
     black76_gamma,
@@ -31,8 +31,8 @@ from volsurface.pricers.black_scholes import (
     parity_check_put,
     price_and_greeks_vectorized,
 )
-from volsurface.pricers.binomial import crr_price, crr_greeks
-from volsurface.pricers.monte_carlo import (
+from volfoundry.pricers.binomial import crr_price, crr_greeks
+from volfoundry.pricers.monte_carlo import (
     _generate_paths,
     mc_price,
     mc_price_with_confidence,
@@ -633,7 +633,7 @@ class TestQuantLibBenchmark:
         r_arr = np.full(n, 0.03)
 
         try:
-            from volsurface.pricers._core import black76_price_greeks_vectorized
+            from volfoundry.pricers._core import black76_price_greeks_vectorized
         except ImportError:
             pytest.skip("C++ extension not built")
 
@@ -681,7 +681,7 @@ class TestQuantLibBenchmark:
 
         # C++ hot path (scalar)
         try:
-            from volsurface.pricers._core import black76_price as cpp_price_fn
+            from volfoundry.pricers._core import black76_price as cpp_price_fn
             t0 = time.perf_counter()
             for _ in range(100_000):
                 cpp_price_fn(F, K, sigma, T, df, 1)

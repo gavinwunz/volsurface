@@ -1,4 +1,4 @@
-"""Tests for volsurface.data.filters — quote cleaning."""
+"""Tests for volfoundry.data.filters — quote cleaning."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import pytest
 
-from volsurface.data.filters import (
+from volfoundry.data.filters import (
     clean_quotes,
     filter_crossed,
     filter_min_days_to_expiry,

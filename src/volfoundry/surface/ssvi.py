@@ -49,7 +49,7 @@ from typing import Optional
 
 import numpy as np
 
-from volsurface.svi.parameterization import SviParams
+from volfoundry.svi.parameterization import SviParams
 
 
 # ---------------------------------------------------------------------------

@@ -1,11 +1,11 @@
-"""Tests for volsurface.surface — SSVI parameterization and global calibration."""
+"""Tests for volfoundry.surface — SSVI parameterization and global calibration."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from volsurface.surface.ssvi import (
+from volfoundry.surface.ssvi import (
     SsviParams,
     ssvi_implied_vol,
     ssvi_to_raw_svi,
@@ -13,7 +13,7 @@ from volsurface.surface.ssvi import (
     ssvi_total_variance,
     ssvi_total_variance_surface,
 )
-from volsurface.surface.calibration import (
+from volfoundry.surface.calibration import (
     SsviCalibrationResult,
     calibrate_ssvi_surface,
     extract_atm_variance,
@@ -311,7 +311,7 @@ class TestSsviToRawSvi:
         phi_val = p.phi(theta)
         raw = ssvi_to_raw_svi(theta, phi_val, p.rho)
 
-        from volsurface.svi.parameterization import svi_total_variance
+        from volfoundry.svi.parameterization import svi_total_variance
         w_ssvi = ssvi_total_variance(0.0, theta, phi_val, p.rho)
         w_raw = svi_total_variance(0.0, raw)
         assert abs(w_ssvi - w_raw) < 1e-12
@@ -347,7 +347,7 @@ class TestSsviToRawSvi:
         rho = 0.5
         raw = ssvi_to_raw_svi(theta, phi_val, rho)
 
-        from volsurface.svi.parameterization import svi_total_variance
+        from volfoundry.svi.parameterization import svi_total_variance
         ks = np.linspace(-3.0, 3.0, 100)
         w_ssvi = ssvi_total_variance(ks, theta, phi_val, rho)
         w_raw = svi_total_variance(ks, raw)

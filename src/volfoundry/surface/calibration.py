@@ -51,9 +51,9 @@ from typing import Callable, Optional, Tuple
 import numpy as np
 from scipy.optimize import minimize
 
-from volsurface.svi.calibration import SviCalibrationResult
-from volsurface.svi.parameterization import SviParams
-from volsurface.surface.ssvi import (
+from volfoundry.svi.calibration import SviCalibrationResult
+from volfoundry.svi.parameterization import SviParams
+from volfoundry.surface.ssvi import (
     SsviParams,
     ssvi_total_variance,
 )

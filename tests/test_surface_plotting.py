@@ -1,4 +1,4 @@
-"""Tests for volsurface.surface.plotting — SSVI surface visualizations."""
+"""Tests for volfoundry.surface.plotting — SSVI surface visualizations."""
 
 from __future__ import annotations
 
@@ -10,19 +10,19 @@ matplotlib.use("Agg")
 import numpy as np
 import pytest
 
-from volsurface.surface.ssvi import SsviParams
-from volsurface.surface.plotting import (
+from volfoundry.surface.ssvi import SsviParams
+from volfoundry.surface.plotting import (
     plot_3d_surface,
     plot_skew_term_structure,
     plot_gk_diagnostics,
     plot_iv_smile_cross_section,
     write_surface_report,
 )
-from volsurface.arbitrage.checks import (
+from volfoundry.arbitrage.checks import (
     ArbitrageCheckResult,
     check_slice_arbitrage,
 )
-from volsurface.svi.parameterization import SviParams as SviP, svi_total_variance
+from volfoundry.svi.parameterization import SviParams as SviP, svi_total_variance
 
 
 @pytest.fixture

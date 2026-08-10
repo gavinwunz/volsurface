@@ -1,4 +1,4 @@
-"""Tests for volsurface.iv — Black-76 pricing and implied volatility inversion."""
+"""Tests for volfoundry.iv — Black-76 pricing and implied volatility inversion."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pytest
 
-from volsurface.iv.black_scholes import (
+from volfoundry.iv.black_scholes import (
     MAX_NR_ITERATIONS,
     VEGA_FLOOR,
     OptionType,

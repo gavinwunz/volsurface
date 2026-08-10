@@ -1,11 +1,11 @@
-"""Tests for volsurface.svi — SVI parameterization and calibration."""
+"""Tests for volfoundry.svi — SVI parameterization and calibration."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
-from volsurface.svi.parameterization import (
+from volfoundry.svi.parameterization import (
     SviParams,
     clip_params_to_valid,
     svi_first_derivative,
@@ -14,7 +14,7 @@ from volsurface.svi.parameterization import (
     svi_second_derivative,
     svi_total_variance,
 )
-from volsurface.svi.calibration import (
+from volfoundry.svi.calibration import (
     build_inverse_spread_weights,
     build_vega_weights,
     calibrate_svi_slice,

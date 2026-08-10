@@ -1,4 +1,4 @@
-"""Tests for volsurface.arbitrage — no-arbitrage enforcement.
+"""Tests for volfoundry.arbitrage — no-arbitrage enforcement.
 
 Includes hypothesis property-based tests over randomized parameter draws
 for butterfly and calendar conditions.
@@ -11,13 +11,13 @@ import pytest
 
 from hypothesis import assume, given, settings, strategies as st
 
-from volsurface.svi.parameterization import (
+from volfoundry.svi.parameterization import (
     SviParams,
     svi_implied_vol,
     svi_second_derivative,
     svi_total_variance,
 )
-from volsurface.arbitrage.checks import (
+from volfoundry.arbitrage.checks import (
     ArbitrageCheckResult,
     SliceValidationReport,
     breeden_litzenberger_density,
@@ -348,7 +348,7 @@ class TestHypothesisCalendar:
 
 class TestPlotting:
     def test_plot_butterfly_g_no_crash(self, tmp_path):
-        from volsurface.arbitrage.plotting import plot_butterfly_g
+        from volfoundry.arbitrage.plotting import plot_butterfly_g
 
         p = make_params()
         result = check_slice_arbitrage("BTC-TEST", p, T=0.25)
@@ -358,7 +358,7 @@ class TestPlotting:
         assert paths[0].suffix == ".png"
 
     def test_write_validation_report_no_crash(self, tmp_path):
-        from volsurface.arbitrage.plotting import write_validation_report
+        from volfoundry.arbitrage.plotting import write_validation_report
 
         p = make_params()
         slices = [("s1", p, 0.25)]
@@ -370,7 +370,7 @@ class TestPlotting:
         assert "s1" in content
 
     def test_plot_butterfly_g_with_violation_fake(self, tmp_path):
-        from volsurface.arbitrage.plotting import plot_butterfly_g
+        from volfoundry.arbitrage.plotting import plot_butterfly_g
 
         p = make_params()
         result = check_slice_arbitrage("BTC-TEST", p, T=0.25)

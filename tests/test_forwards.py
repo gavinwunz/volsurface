@@ -1,4 +1,4 @@
-"""Tests for volsurface.data.forwards — put-call parity forward extraction."""
+"""Tests for volfoundry.data.forwards — put-call parity forward extraction."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from volsurface.data.forwards import ForwardResult, compute_time_to_expiry, extract_forwards
+from volfoundry.data.forwards import ForwardResult, compute_time_to_expiry, extract_forwards
 
 
 def _make_df(
