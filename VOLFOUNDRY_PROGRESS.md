@@ -94,9 +94,9 @@ append a dated line (newest first) to the session log.
 - [x] `docs/development/releasing.md` with full release checklist
 
 ### P13 — Documentation restructure
-- [ ] `docs/` tree (getting-started, concepts, api, guides, derivations, development, migration)
-- [ ] Every math page: Definition/Assumptions/Formula/Implementation/Numerical caveats/References
-- [ ] Public API docs: purpose, params, return, units, exceptions, example, limitations
+- [x] `docs/` tree (getting-started, concepts, api, guides, derivations, development, migration)
+- [x] Every math page: Definition/Assumptions/Formula/Implementation/Numerical caveats/References
+- [x] Public API docs: purpose, params, return, units, exceptions, example, limitations
 
 ### P14 — README for distribution
 - [ ] First screen: what/why/see/install; hero visual; 10-line quickstart; badges
@@ -129,6 +129,21 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-11: **P13 complete.** Restructured `docs/` tree: `getting-started/`
+  (installation, quickstart, offline-data), `concepts/` (implied-volatility,
+  volatility-smile, svi, ssvi, arbitrage, forwards), `api/` index with full
+  reference for all stable public objects (DeribitClient, SurfaceBuilder,
+  VolatilitySurface, SurfaceFitResult, ValidationReport, OptionChain,
+  exception taxonomy), `guides/` (deribit, fitting-a-surface,
+  validating-a-surface, querying-a-surface, historical-snapshots). Every
+  mathematical page uses the standard six-section format (Definition,
+  Assumptions, Formula, Implementation, Numerical caveats, References).
+  Updated `docs/development/architecture.md` (dependency rules, module map,
+  design decisions) and `docs/development/testing.md`. Refreshed
+  network_inventory.md and numerics_inventory.md for post-P7 state.
+  Expanded derivations README with cross-links. 438 tests pass, build green,
+  committed+pu
+shed as 033fddb.
 - 2026-08-11: **P10/P11/P12 workflow files created, push blocked on token scope.**
   P10: ci.yml (lint+type+test 3.10/11/12+build+wheel smoke), live-integration.yml
   (daily 07:38 UTC), tests/live/test_live_smoke.py (3 tests). P11: dependabot.yml
