@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VolFoundry — live volatility surfaces from live option chains</title>
+<meta name="description" content="Open-source volatility infrastructure: live Deribit option chains to Black-76 implied vols, SVI/SSVI surfaces and static-arbitrage diagnostics — running live in your browser." />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#080b11" />
+<meta property="og:title" content="VolFoundry — live volatility surfaces" />
+<meta property="og:description" content="Live option chains → Black-76 implied vol → SVI/SSVI surfaces → static-arbitrage diagnostics. Open source." />
+<meta property="og:type" content="website" />
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="favicon.svg" />
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous" />
+<link rel="stylesheet" href="styles.css" />
+
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" crossorigin="anonymous"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<script defer src="app.js"></script>
+</head>
+<body>
+
+<!-- ======================= top bar ======================= -->
+<header class="topbar">
+  <div class="shell">
+    <a class="brand" href="#top" aria-label="VolFoundry home">
+      <img src="logo.svg" alt="" width="34" height="34" />
+      <span>
+        <span class="wm"><b>Vol</b><span>Foundry</span></span>
+        <span class="tag">volatility infrastructure</span>
+      </span>
+    </a>
+
+    <nav class="tabs" aria-label="Sections">
+      <a href="#live" class="on">Live surface</a>
+      <a href="#curves">Smile &amp; term</a>
+      <a href="#method">Method</a>
+      <a href="#library">Library</a>
+    </nav>
+
+    <div class="tb-right">
+      <span class="status" title="Public Deribit WebSocket, straight from your browser">
+        <span id="wsdot" class="dot"></span><span id="wsstat">connecting…</span>
+      </span>
+      <a class="ghost" data-repo href="#" target="_blank" rel="noopener noreferrer">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0a8 8 0 0 0-2.53 15.59c.4.07.55-.17.55-.38l-.01-1.34c-2.23.49-2.7-1.07-2.7-1.07-.36-.93-.89-1.18-.89-1.18-.73-.5.06-.49.06-.49.8.06 1.23.83 1.23.83.72 1.23 1.88.87 2.34.67.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.01.08-2.12 0 0 .67-.21 2.2.82a7.6 7.6 0 0 1 4 0c1.53-1.03 2.2-.82 2.2-.82.44 1.11.16 1.92.08 2.12.51.56.82 1.28.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48l-.01 2.2c0 .21.14.46.55.38A8 8 0 0 0 8 0Z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</header>
+
+<main class="shell" id="top">
+
+  <!-- ======================= hero ======================= -->
+  <section class="hero">
+    <p class="eyebrow">open-source volatility infrastructure</p>
+    <h1>Live option chains, turned into <em>arbitrage-checked</em> vol surfaces.</h1>
+    <p>
+      VolFoundry inverts live Deribit quotes through Black-76, extracts a forward per expiry,
+      fits raw-SVI smiles and a global SSVI surface, then reports static-arbitrage diagnostics
+      <em>with</em> their evaluation domain and tolerance. Everything below this line is running
+      on live market data, in this browser tab — no server, no replay.
+    </p>
+    <div class="pipeline">
+      <span class="acc">Deribit WS</span><i>→</i>
+      <span>quote validation</span><i>→</i>
+      <span>forward extraction</span><i>→</i>
+      <span>Black-76 IV</span><i>→</i>
+      <span>raw SVI</span><i>→</i>
+      <span>global SSVI</span><i>→</i>
+      <span class="acc">static-arb checks</span>
+    </div>
+  </section>
+
+  <!-- ======================= live board ======================= -->
+  <section id="live" class="board">
+
+    <div class="stack">
+      <!-- 3D surface -->
+      <article class="card">
+        <div class="hd">
+          <div class="ttl">
+            <span class="kicker">market surface · interpolated</span>
+            <h2>Implied volatility surface</h2>
+          </div>
+          <div class="sp"></div>
+          <div class="seg" id="axisSeg" role="group" aria-label="Surface x-axis">
+            <button type="button" data-axis="z" class="on">σ-moneyness</button>
+            <button type="button" data-axis="k">ln(K/F)</button>
+            <button type="button" data-axis="K">strike</button>
+          </div>
+          <button type="button" class="chip" id="rawToggle">quotes: off</button>
+          <button type="button" class="chip" id="camReset">reset view</button>
+        </div>
+        <div class="bd flush" style="position:relative">
+          <div id="surface" class="plot" role="img" aria-label="Three-dimensional implied volatility surface"></div>
+          <div class="overlay" id="surfaceWait">building surface from the live chain…</div>
+        </div>
+        <div class="legend">
+          <span><i style="background:linear-gradient(90deg,#0e2745,#2a9d92,#e8bf5a,#ff5a2e)"></i>σ low → high</span>
+          <span>drag to orbit · each expiry is drawn only across the strikes it quotes, trimmed to ±4 ATM standard deviations</span>
+          <span>σ-moneyness puts every maturity on the same footing: \(z=k/(\sigma_{\mathrm{ATM}}\sqrt{T})\)</span>
+          <span class="num" id="surfaceMeta" style="margin-left:auto;color:var(--dim)"></span>
+        </div>
+      </article>
+
+      <!-- smile + term -->
+      <div class="split" id="curves">
+        <article class="card">
+          <div class="hd">
+            <div class="ttl">
+              <span class="kicker">slice · live</span>
+              <h3>Smile — implied vol vs strike</h3>
+            </div>
+          </div>
+          <div class="bd" style="padding:12px 14px 0">
+            <div class="chips" id="expChips" role="group" aria-label="Expiry"></div>
+          </div>
+          <div class="bd flush" style="position:relative">
+            <div id="smile" class="plot mid"></div>
+            <div class="overlay" id="smileWait">waiting for the first chain snapshot…</div>
+          </div>
+          <div class="legend"><span class="num" id="smileMeta" style="color:var(--dim)"></span></div>
+        </article>
+
+        <article class="card">
+          <div class="hd">
+            <div class="ttl">
+              <span class="kicker">term structure · live</span>
+              <h3>ATM vol by maturity</h3>
+            </div>
+          </div>
+          <div class="bd" style="padding:12px 14px 0">
+            <div class="seg tq" id="termSeg" role="group" aria-label="Maturity axis scale">
+              <button type="button" data-term="log" class="on">log days</button>
+              <button type="button" data-term="lin">linear</button>
+            </div>
+          </div>
+          <div class="bd flush" style="position:relative">
+            <div id="term" class="plot mid"></div>
+            <div class="overlay" id="termWait">waiting for the first chain snapshot…</div>
+          </div>
+          <div class="legend">
+            <span>ATM read off each fitted slice at \(k=0\) — the \(\theta(T)\) that SSVI ties the surface to.</span>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <!-- right rail -->
+    <aside class="rail">
+      <article class="card price">
+        <div class="hd">
+          <div class="ttl">
+            <span class="kicker">index · deribit</span>
+            <h3><span class="ccyLab">BTC</span>–USD</h3>
+          </div>
+          <div class="sp"></div>
+          <div class="seg" id="ccySeg" role="group" aria-label="Currency">
+            <button type="button" data-ccy="BTC" class="on">BTC</button>
+            <button type="button" data-ccy="ETH">ETH</button>
+          </div>
+        </div>
+        <div class="bd">
+          <div class="row1">
+            <span class="sym num"><span class="ccyLab">BTC</span>_USD</span>
+            <span class="tagline">price index</span>
+          </div>
+          <span class="big num" id="bigPrice">—</span>
+          <div class="sub">
+            <span class="num" id="priceChg">since page load</span>
+            <span class="num" id="tickCount" style="margin-left:auto"></span>
+            <span class="num" id="priceStamp"></span>
+          </div>
+          <svg class="spark" id="spark" viewBox="0 0 300 46" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="gUp" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#2fd07f" stop-opacity=".28"/><stop offset="1" stop-color="#2fd07f" stop-opacity="0"/>
+              </linearGradient>
+              <linearGradient id="gDn" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#ff6058" stop-opacity=".28"/><stop offset="1" stop-color="#ff6058" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path id="sparkArea" d="" fill="url(#gUp)"/>
+            <path id="sparkRef" d="" stroke="rgba(255,255,255,.16)" stroke-width="1" stroke-dasharray="3 4" fill="none" vector-effect="non-scaling-stroke"/>
+            <path id="sparkLine" d="" stroke="#2fd07f" stroke-width="1.6" fill="none" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </article>
+
+      <div class="tiles">
+        <div class="tile">
+          <span class="lab">ATM vol · front</span>
+          <span class="v num" id="tAtm">—</span>
+          <span class="n" id="tAtmNote">nearest listed expiry</span>
+        </div>
+        <div class="tile">
+          <span class="lab">ATM vol · 30d</span>
+          <span class="v num" id="tAtm30">—</span>
+          <span class="n" id="tAtm30Note">interpolated in total variance</span>
+        </div>
+        <div class="tile">
+          <span class="lab">Live quotes</span>
+          <span class="v num" id="tQuotes">—</span>
+          <span class="n" id="tQuotesNote">book summary, whole chain</span>
+        </div>
+        <div class="tile">
+          <span class="lab">Vol churn</span>
+          <span class="v num" id="tChurn">—</span>
+          <span class="n" id="tChurnNote">instruments repriced per refresh</span>
+        </div>
+        <div class="tile">
+          <span class="lab">Front skew</span>
+          <span class="v num" id="tSkew">—</span>
+          <span class="n" id="tSkewNote">put wing minus call wing, one σ out</span>
+        </div>
+        <div class="tile">
+          <span class="lab">Sharp move · 60s</span>
+          <span class="v num" id="tMove">—</span>
+          <div class="meter"><i id="mMove"></i></div>
+          <span class="n" id="tMoveNote">index range, basis points</span>
+        </div>
+      </div>
+
+      <article class="card">
+        <div class="hd">
+          <div class="ttl">
+            <span class="kicker">event tape</span>
+            <h3>What just changed</h3>
+          </div>
+          <div class="sp"></div>
+          <span class="status"><span class="dot live"></span>streaming</span>
+        </div>
+        <ul class="tape" id="tape"></ul>
+        <div class="tape-empty" id="tapeEmpty">awaiting the first tick…</div>
+      </article>
+
+      <article class="card">
+        <div class="hd">
+          <div class="ttl">
+            <span class="kicker">volfoundry output</span>
+            <h3>Calibrated SSVI</h3>
+          </div>
+          <div class="sp"></div>
+          <span class="verdict" id="calBadge">not published yet</span>
+        </div>
+        <div class="bd" id="calBody">
+          <div class="empty">
+            <h4>Calibrated surface publishes after v0.1.0</h4>
+            <p>
+              This panel renders <code>surface.json</code> — the library's own SSVI fit, its
+              per-slice parameters and its butterfly / calendar verdict — as soon as the scheduled
+              recalibration job publishes one. Nothing here is simulated in the meantime.
+            </p>
+          </div>
+        </div>
+      </article>
+    </aside>
+  </section>
+
+  <!-- ======================= method ======================= -->
+  <section id="method" class="method">
+    <div class="sec-head">
+      <h2>The maths, stated exactly</h2>
+      <p>
+        Volatility is decimal (0.60 = 60%), maturity \(T\) is in years on ACT/365, log-moneyness is
+        \(k=\ln(K/F)\) and total variance is \(w(k,T)=\sigma^2(k,T)\,T\). Full derivations live in
+        the repository under <code>docs/derivations/</code>.
+      </p>
+    </div>
+
+    <div class="maths">
+      <article class="eq">
+        <span class="no">01 · PRICING</span>
+        <h3>Black-76, futures-settled European option</h3>
+        <div class="m">\[ C = e^{-rT}\big[F\,\Phi(d_1)-K\,\Phi(d_2)\big],\qquad
+          d_{1,2}=\frac{\ln(F/K)\pm\tfrac12\sigma^2T}{\sigma\sqrt{T}} \]</div>
+        <p class="note">Crypto options settle against a futures/forward, so the forward — not spot —
+          is the pricing state variable. Implied vol inverts this for \(\sigma\) by Newton on vega
+          with a bracketed fallback, which keeps the root inside \(\sigma\in(0,5]\).</p>
+      </article>
+
+      <article class="eq">
+        <span class="no">02 · FORWARD</span>
+        <h3>Forward extraction by put–call parity</h3>
+        <div class="m">\[ C(K)-P(K)=e^{-rT}\,(F-K) \]</div>
+        <p class="note">Regressing \(C-P\) on \(K\) across paired strikes recovers the slope
+          \(-e^{-rT}\) and hence the discount factor and forward, per expiry — no constant-rate or
+          zero-basis assumption. The live panels above use Deribit's published per-expiry
+          <code>underlying_price</code> as \(F\); the library derives it from the quotes.</p>
+      </article>
+
+      <article class="eq">
+        <span class="no">03 · SMILE</span>
+        <h3>Raw SVI slice</h3>
+        <div class="m">\[ w(k)=a+b\Big(\rho\,(k-m)+\sqrt{(k-m)^2+\sigma^2}\Big) \]</div>
+        <p class="note">Five parameters per expiry, fitted with the Zeliade quasi-explicit scheme:
+          an outer search over \((m,\sigma)\) wrapping an inner constrained least-squares solve for
+          \((a,b,\rho)\). The surface plotted above is a non-parametric local-quadratic smoother on
+          \(w\) — the same input the SVI fit consumes, shown before parameterisation.</p>
+      </article>
+
+      <article class="eq">
+        <span class="no">04 · BUTTERFLY</span>
+        <h3>Density non-negativity, \(g(k)\ge 0\)</h3>
+        <div class="m">\[ g(k)=\Big(1-\frac{k\,w'(k)}{2w(k)}\Big)^{2}
+          -\frac{w'(k)^2}{4}\Big(\frac{1}{w(k)}+\frac14\Big)+\frac{w''(k)}{2} \]</div>
+        <p class="note">Evaluated numerically over a stated domain (e.g. \(k\in[-2,2]\), 1001 points)
+          and cross-checked against the Breeden–Litzenberger density
+          \(\partial^2C/\partial K^2\ge 0\). Reported with its tolerance: a pass is evidence over
+          that grid, not a proof over the whole real line.</p>
+      </article>
+
+      <article class="eq">
+        <span class="no">05 · CALENDAR</span>
+        <h3>Calendar monotonicity &amp; SSVI</h3>
+        <div class="m">\[ \partial_T\,w(k,T)\ge 0,\qquad
+          w(k,\theta)=\frac{\theta}{2}\Big(1+\rho\varphi(\theta)k+\sqrt{(\varphi(\theta)k+\rho)^2+1-\rho^2}\Big) \]</div>
+        <p class="note">SSVI ties the slices together through the ATM total variance \(\theta(T)\)
+          and a \(\varphi(\theta)\) family. Gatheral–Jacquier give parameter conditions that make the
+          surface free of calendar and butterfly arbitrage; VolFoundry enforces them during
+          calibration rather than only auditing afterwards.</p>
+      </article>
+
+      <article class="eq">
+        <span class="no">06 · HYGIENE</span>
+        <h3>What gets thrown away first</h3>
+        <div class="m">\[ \text{keep } q:\;\; b>0,\;\; a>b,\;\; \tau > \tau_{\min},\;\;
+          \max(F-K,0)e^{-rT} \le C \le Fe^{-rT} \]</div>
+        <p class="note">Zero-bid, crossed and stale quotes, sub-day maturities and prices outside the
+          static no-arbitrage bounds are removed <em>before</em> inversion, and the counts are
+          reported. A surface is only as honest as the quote filter under it.</p>
+      </article>
+    </div>
+  </section>
+
+  <!-- ======================= library ======================= -->
+  <section id="library" class="method">
+    <div class="sec-head">
+      <h2>Use it as a library</h2>
+      <p>Pure Python, typed, tested against analytic cases and reference surfaces. Same code path
+        the panels on this page are modelled on.</p>
+    </div>
+
+    <div class="lib">
+      <div class="term">
+        <div class="bar"><i></i><i></i><i></i><span style="margin-left:6px">shell</span></div>
+<pre><span class="c"># install</span>
+<span class="p">$</span> pip install <span data-pkg>volfoundry</span>
+
+<span class="c"># live chain → calibrated, validated surface</span>
+<span class="p">$</span> <span data-pkg>volfoundry</span> live --currency BTC --out surface.json
+
+<span class="c"># or from Python</span>
+<span class="p">&gt;&gt;&gt;</span> <span class="s">from</span> volfoundry <span class="s">import</span> Chain, SSVISurface
+<span class="p">&gt;&gt;&gt;</span> chain   = Chain.from_deribit(<span class="s">"BTC"</span>)
+<span class="p">&gt;&gt;&gt;</span> surface = SSVISurface.calibrate(chain)
+<span class="p">&gt;&gt;&gt;</span> surface.validate(domain=(-2, 2), n=1001).is_valid
+True
+<span class="p">&gt;&gt;&gt;</span> surface.iv(k=0.0, T=30/365)
+0.5812</pre>
+      </div>
+
+      <ul class="feat">
+        <li><span class="ic">01</span><span><b>Quotes in, surface out</b>Deribit live or historical chains, quote hygiene and forward extraction included — not just a curve fitter.</span></li>
+        <li><span class="ic">02</span><span><b>Diagnostics you can quote</b>Butterfly, calendar and density checks returned as data: domain, grid size, tolerance, per-slice minima and rejects.</span></li>
+        <li><span class="ic">03</span><span><b>Deterministic and typed</b>Seeded optimisers, pinned tolerances, full type hints, property tests on the SVI parameter constraints.</span></li>
+        <li><span class="ic">04</span><span><b>MIT licensed</b>Read it, fork it, vendor it. Issues and PRs at <a data-repo href="#" target="_blank" rel="noopener noreferrer"><span data-repo-label>the repository</span></a>.</span></li>
+      </ul>
+    </div>
+
+    <div class="disclaim">
+      <span class="ic">Notice</span>
+      <span>
+        Research and educational open-source software — <b>not investment advice</b> and not a trading
+        recommendation. Market data is fetched directly from a public exchange endpoint and comes with
+        no warranty of completeness, accuracy or timeliness; the surface shown here is an interpolation
+        of exchange <code>mark_iv</code>, not an executable price. Numerical no-arbitrage checks are
+        reported together with their evaluation domain, grid and tolerance and are <b>not a guarantee of
+        arbitrage-freeness</b> over all strikes and maturities. Validate independently before any
+        financial use.
+      </span>
+    </div>
+  </section>
+
+  <footer>
+    <span><b>VolFoundry</b> · <span class="num">v0.1.0-dev</span> · MIT</span>
+    <span class="fl">
+      <a data-repo href="#" target="_blank" rel="noopener noreferrer"><span data-repo-label>repository</span></a>
+      <span class="num">pip install <span data-pkg>volfoundry</span></span>
+      <span>live data © Deribit, via its public API</span>
+      <span>© <span id="year">2026</span></span>
+    </span>
+  </footer>
+</main>
+</body>
+</html>
