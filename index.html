@@ -270,78 +270,96 @@
   <section id="method" class="method">
     <div class="sec-head">
       <p class="eyebrow">Methodology</p>
-      <h2>Method &amp; analysis</h2>
+      <h2>Pricing, calibration &amp; no-arbitrage validation</h2>
       <p>
-        A short methodology note on how a quote becomes a validated surface, and the conventions the
-        analysis runs on: volatility is decimal (0.60 = 60%), maturity \(T\) is in years on ACT/365,
-        log-moneyness is \(k=\ln(K/F)\), and total variance is \(w(k,T)=\sigma^2(k,T)\,T\). Each step
-        below states what it assumes and how it is checked; full derivations live in the repository
-        under <code>docs/derivations/</code>.
+        The pipeline that turns a raw quote into a validated surface, with each step tied to its
+        source in the literature and to where it runs in the code. Conventions: volatility is decimal
+        (0.60 = 60%), maturity \(T\) is in years on ACT/365, log-moneyness is \(k=\ln(K/F)\), and
+        total variance is \(w(k,T)=\sigma^2(k,T)\,T\). Full derivations are in the repository under
+        <code>docs/derivations/</code>; numbered references are listed below.
       </p>
     </div>
 
     <div class="maths">
       <article class="eq">
         <span class="no">01 · PRICING</span>
-        <h3>Black-76, futures-settled European option</h3>
+        <h3>Forward-settled European options <a href="#r1" class="cref">[1]</a></h3>
         <div class="m">\[ C = e^{-rT}\big[F\,\Phi(d_1)-K\,\Phi(d_2)\big],\qquad
           d_{1,2}=\frac{\ln(F/K)\pm\tfrac12\sigma^2T}{\sigma\sqrt{T}} \]</div>
-        <p class="note">Crypto options settle against a futures/forward, so the forward — not spot —
-          is the pricing state variable. Implied vol inverts this for \(\sigma\) by Newton on vega
-          with a bracketed fallback, which keeps the root inside \(\sigma\in(0,5]\).</p>
+        <p class="note">Black's forward measure <a href="#r1" class="cref">[1]</a>: crypto options settle
+          against a future, so the forward — not spot — is the state variable.
+          <b>In VolFoundry:</b> <code>pricers.black76_price</code> evaluates this; <code>iv.implied_volatility</code>
+          inverts it for \(\sigma\) by Newton on vega with a bracketed (Brent) fallback, holding the root
+          in \(\sigma\in(0,5]\).</p>
       </article>
 
       <article class="eq">
         <span class="no">02 · FORWARD</span>
-        <h3>Forward extraction by put–call parity</h3>
+        <h3>Forward curve from put–call parity</h3>
         <div class="m">\[ C(K)-P(K)=e^{-rT}\,(F-K) \]</div>
-        <p class="note">Regressing \(C-P\) on \(K\) across paired strikes recovers the slope
-          \(-e^{-rT}\) and hence the discount factor and forward, per expiry — no constant-rate or
-          zero-basis assumption. The live panels above use Deribit's published per-expiry
-          <code>underlying_price</code> as \(F\); the library derives it from the quotes.</p>
+        <p class="note">A model-free identity. Regressing \(C-P\) on \(K\) across paired strikes yields
+          slope \(-e^{-rT}\), hence the discount factor and forward, per expiry — no constant-rate or
+          zero-basis assumption. <b>In VolFoundry:</b> <code>SurfaceBuilder</code> runs this regression;
+          the live panels above use Deribit's per-expiry <code>underlying_price</code> as \(F\).</p>
       </article>
 
       <article class="eq">
         <span class="no">03 · SMILE</span>
-        <h3>Raw SVI slice</h3>
+        <h3>SVI slice parameterisation <a href="#r3" class="cref">[3]</a><a href="#r6" class="cref">[6]</a></h3>
         <div class="m">\[ w(k)=a+b\Big(\rho\,(k-m)+\sqrt{(k-m)^2+\sigma^2}\Big) \]</div>
-        <p class="note">Five parameters per expiry, fitted with the Zeliade quasi-explicit scheme:
-          an outer search over \((m,\sigma)\) wrapping an inner constrained least-squares solve for
-          \((a,b,\rho)\). The surface plotted above is a non-parametric local-quadratic smoother on
-          \(w\) — the same input the SVI fit consumes, shown before parameterisation.</p>
+        <p class="note">Gatheral's stochastic-volatility-inspired form <a href="#r3" class="cref">[3]</a>;
+          its wing slopes \(b(1\pm\rho)\) obey Lee's moment bound \(\le 2\) <a href="#r5" class="cref">[5]</a>.
+          <b>In VolFoundry:</b> <code>svi.calibrate_svi_slice</code> uses the Zeliade quasi-explicit scheme
+          <a href="#r6" class="cref">[6]</a> — outer search over \((m,\sigma)\), inner constrained
+          least-squares for \((a,b,\rho)\).</p>
       </article>
 
       <article class="eq">
         <span class="no">04 · BUTTERFLY</span>
-        <h3>Density non-negativity, \(g(k)\ge 0\)</h3>
+        <h3>Butterfly arbitrage: the \(g(k)\) condition <a href="#r4" class="cref">[4]</a></h3>
         <div class="m">\[ g(k)=\Big(1-\frac{k\,w'(k)}{2w(k)}\Big)^{2}
-          -\frac{w'(k)^2}{4}\Big(\frac{1}{w(k)}+\frac14\Big)+\frac{w''(k)}{2} \]</div>
-        <p class="note">Evaluated numerically over a stated domain (e.g. \(k\in[-2,2]\), 1001 points)
-          and cross-checked against the Breeden–Litzenberger density
-          \(\partial^2C/\partial K^2\ge 0\). Reported with its tolerance: a pass is evidence over
-          that grid, not a proof over the whole real line.</p>
+          -\frac{w'(k)^2}{4}\Big(\frac{1}{w(k)}+\frac14\Big)+\frac{w''(k)}{2}\;\ge\;0 \]</div>
+        <p class="note">Non-negative risk-neutral density in Gatheral–Jacquier form <a href="#r4" class="cref">[4]</a>,
+          cross-checked against the Breeden–Litzenberger density \(\partial^2C/\partial K^2\ge 0\)
+          <a href="#r2" class="cref">[2]</a>. <b>In VolFoundry:</b> <code>arbitrage</code> evaluates \(g(k)\)
+          over a stated domain (e.g. \(k\in[-2,2]\), 1001 pts) at a reported tolerance — evidence over that
+          grid, not a proof over the whole real line.</p>
       </article>
 
       <article class="eq">
         <span class="no">05 · CALENDAR</span>
-        <h3>Calendar monotonicity &amp; SSVI</h3>
+        <h3>Calendar arbitrage &amp; the SSVI surface <a href="#r4" class="cref">[4]</a></h3>
         <div class="m">\[ \partial_T\,w(k,T)\ge 0,\qquad
           w(k,\theta)=\frac{\theta}{2}\Big(1+\rho\varphi(\theta)k+\sqrt{(\varphi(\theta)k+\rho)^2+1-\rho^2}\Big) \]</div>
-        <p class="note">SSVI ties the slices together through the ATM total variance \(\theta(T)\)
-          and a \(\varphi(\theta)\) family. Gatheral–Jacquier give parameter conditions that make the
-          surface free of calendar and butterfly arbitrage; VolFoundry enforces them during
-          calibration rather than only auditing afterwards.</p>
+        <p class="note">SSVI couples the slices through ATM total variance \(\theta(T)\) and a
+          \(\varphi(\theta)\) family; Gatheral–Jacquier give the parameter conditions for a
+          calendar- and butterfly-free surface <a href="#r4" class="cref">[4]</a>. <b>In VolFoundry:</b>
+          strict validation enforces these <em>during</em> calibration and rejects violating fits, rather
+          than auditing after the fact.</p>
       </article>
 
       <article class="eq">
-        <span class="no">06 · HYGIENE</span>
-        <h3>What gets thrown away first</h3>
+        <span class="no">06 · FILTERING</span>
+        <h3>Quote filtering &amp; no-arbitrage bounds</h3>
         <div class="m">\[ \text{keep } q:\;\; b>0,\;\; a>b,\;\; \tau > \tau_{\min},\;\;
           \max(F-K,0)e^{-rT} \le C \le Fe^{-rT} \]</div>
         <p class="note">Zero-bid, crossed and stale quotes, sub-day maturities and prices outside the
-          static no-arbitrage bounds are removed <em>before</em> inversion, and the counts are
-          reported. A surface is only as honest as the quote filter under it.</p>
+          static no-arbitrage bounds are removed <em>before</em> inversion. <b>In VolFoundry:</b> the
+          <code>data</code> layer records per-reason drop counts so the surface is auditable — a fit is
+          only as sound as the quotes beneath it.</p>
       </article>
+    </div>
+
+    <div class="refs">
+      <h3>References</h3>
+      <ol>
+        <li id="r1">Black, F. (1976). The pricing of commodity contracts. <em>Journal of Financial Economics</em>, 3(1–2), 167–179. <a href="https://doi.org/10.1016/0304-405X(76)90024-6" target="_blank" rel="noopener">doi:10.1016/0304-405X(76)90024-6</a></li>
+        <li id="r2">Breeden, D. T., &amp; Litzenberger, R. H. (1978). Prices of state-contingent claims implicit in option prices. <em>The Journal of Business</em>, 51(4), 621–651. <a href="https://doi.org/10.1086/296025" target="_blank" rel="noopener">doi:10.1086/296025</a></li>
+        <li id="r3">Gatheral, J. (2004). A parsimonious arbitrage-free implied volatility parameterization. <em>Global Derivatives &amp; Risk Management</em>, Madrid; see also <em>The Volatility Surface</em> (Wiley, 2006).</li>
+        <li id="r4">Gatheral, J., &amp; Jacquier, A. (2014). Arbitrage-free SVI volatility surfaces. <em>Quantitative Finance</em>, 14(1), 59–71. <a href="https://arxiv.org/abs/1204.0646" target="_blank" rel="noopener">arXiv:1204.0646</a></li>
+        <li id="r5">Lee, R. W. (2004). The moment formula for implied volatility at extreme strikes. <em>Mathematical Finance</em>, 14(3), 469–480. <a href="https://doi.org/10.1111/j.0960-1627.2004.00200.x" target="_blank" rel="noopener">doi:10.1111/j.0960-1627.2004.00200.x</a></li>
+        <li id="r6">Zeliade Systems (2009). Quasi-explicit calibration of Gatheral's SVI model. <em>Zeliade White Paper</em> ZWP-0005.</li>
+      </ol>
     </div>
   </section>
 

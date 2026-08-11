@@ -308,3 +308,17 @@ footer a{color:var(--ink-2)} footer a:hover{color:var(--hot)}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms !important;transition-duration:.01ms !important}
 }
+
+/* --- methodology: eyebrow fix + citations + references --- */
+.sec-head .eyebrow{font-size:11px;color:var(--hot)}
+.cref{font-family:var(--mono);font-size:.72em;font-weight:600;color:var(--hot);
+  text-decoration:none;vertical-align:super;padding:0 1px}
+.cref:hover{text-decoration:underline}
+.eq h3 .cref{color:var(--hot)}
+.refs{grid-column:1/-1;margin-top:26px;border-top:1px solid var(--line);padding-top:18px}
+.refs h3{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim);margin:0 0 12px}
+.refs ol{margin:0;padding-left:22px;display:grid;gap:8px}
+.refs li{color:var(--mut);font-size:12.4px;line-height:1.55;scroll-margin-top:80px}
+.refs li:target{color:var(--ink-2)}
+.refs a{color:var(--tq);word-break:break-word}
