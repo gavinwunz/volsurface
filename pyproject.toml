@@ -86,7 +86,25 @@ addopts = "-q"
 markers = [
     "unit: Fast deterministic unit tests (default CI suite)",
     "integration: Tests that combine multiple modules",
-    "live: Tests requiring live Deribit network access",
+    "property: Hypothesis property-based tests for mathematical invariants",
+    "regression: Golden-fixture tests with expected outputs and tolerances",
+    "live: Tests requiring live Deribit network access — excluded from default suite",
     "slow: Tests that take significantly longer than the typical unit",
-    "benchmark: Performance benchmarks (may require optional deps)",
+    "benchmark: Performance benchmarks — may require optional dependencies",
 ]
+
+[tool.coverage.run]
+source = ["src/volfoundry"]
+omit = ["src/volfoundry/cli/*", "src/volfoundry/surface/plotting.py"]
+
+[tool.coverage.report]
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+    "raise NotImplementedError",
+    "class .*\\bProtocol\\):",
+]
+
+[tool.coverage.paths]
+source = ["src"]

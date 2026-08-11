@@ -134,7 +134,7 @@ class TestStrictModeRefusesInvalid:
     def test_strict_raises_on_invalid_surface(self):
         """Use a synthetic chain that is well-structured; verify strict
         mode either returns a valid surface or raises appropriately."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         builder = SurfaceBuilder(min_quotes_per_slice=2, n_k=51)
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
@@ -183,7 +183,7 @@ class TestReportModePreservesInvalid:
 
     def test_report_mode_never_raises_on_invalid(self):
         """Regardless of data quality, report mode returns a result."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         builder = SurfaceBuilder(min_quotes_per_slice=2, n_k=51)
         df = _make_synthetic_option_chain(n_expiries=2, strikes_per_expiry=12, seed=99)
@@ -205,7 +205,7 @@ class TestReportModePreservesInvalid:
 
     def test_report_mode_invalid_result_has_rejection_details(self):
         """An invalid report-mode result must carry rejection reasons."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         builder = SurfaceBuilder(min_quotes_per_slice=2, n_k=51)
         df = _make_synthetic_option_chain(n_expiries=2, strikes_per_expiry=10, seed=42)
@@ -289,7 +289,7 @@ class TestOptimizerVsArbitrageFailure:
         - 'converged_invalid': optimizer converged but surface is invalid
         - 'converged': optimizer converged and surface is valid
         """
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder()
@@ -303,7 +303,7 @@ class TestOptimizerVsArbitrageFailure:
 
     def test_optimizer_diagnostics_present(self):
         """The optimizer diagnostics must be available for inspection."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder()
@@ -316,7 +316,7 @@ class TestOptimizerVsArbitrageFailure:
     def test_did_not_converge_status_means_ssvi_failed(self):
         """When status is 'did_not_converge', the SSVI optimizer
         result.success must be False."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder()
@@ -341,7 +341,7 @@ class TestToleranceInMetadata:
 
     def test_custom_butterfly_tol_in_metadata(self):
         """Setting a custom butterfly tolerance must appear in the report."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder(butterfly_tol=-1e-6, calendar_tol=-1e-8)
@@ -353,7 +353,7 @@ class TestToleranceInMetadata:
 
     def test_custom_k_domain_in_metadata(self):
         """Setting a custom k domain must appear in the evaluation_domain."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder(k_range=(-2.0, 2.0), n_k=301)
@@ -366,7 +366,7 @@ class TestToleranceInMetadata:
 
     def test_default_tolerances_recorded(self):
         """The default tolerances must be recorded in the report."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder()
@@ -380,7 +380,7 @@ class TestToleranceInMetadata:
     def test_analytical_conditions_in_report(self):
         """The analytical conditions dict must be present and contain
         all expected keys."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder()
@@ -393,7 +393,7 @@ class TestToleranceInMetadata:
     def test_per_slice_diagnostics_include_g_min(self):
         """Per-expiry diagnostics must include per-slice g(k) min and
         SVI fit-vs-valid status."""
-        from tests.test_high_level_api import _make_synthetic_option_chain
+        from tests.integration.test_high_level_api import _make_synthetic_option_chain
 
         df = _make_synthetic_option_chain(n_expiries=3, strikes_per_expiry=10)
         builder = SurfaceBuilder()

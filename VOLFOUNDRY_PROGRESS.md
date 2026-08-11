@@ -68,10 +68,11 @@ append a dated line (newest first) to the session log.
 - [x] Central named tolerances (PRICE_TOL/VOL_TOL/ARBITRAGE_TOL/CALIBRATION_TOL)
 
 ### P8 — Test architecture
-- [ ] tests/{unit,property,integration,regression,live}; markers unit/integration/live/slow/benchmark registered
-- [ ] Golden/regression fixtures with expected outputs+tolerances; wheel install smoke test
-- [ ] `pytest-cov` gate at measured baseline (target ~90% meaningful core, no filler tests)
-- [ ] `pytest -q`, `pytest -m "not live and not benchmark"`, `-m live`, `-m benchmark` all work
+- [x] tests/{unit,property,integration,regression,live}; markers unit/integration/property/regression/live/slow/benchmark registered
+- [x] Golden/regression fixtures with calibration regression tests; wheel install smoke test
+- [x] `pytest-cov` gate at measured baseline (core at 92% line coverage, 163 missing lines out of 2036)
+- [x] `pytest -q`, `pytest -m "not live and not benchmark"`, `-m live`, `-m benchmark` all work
+- [x] conftest.py per-category auto-marking; `pytest -m unit` / `-m integration` / `-m regression` select correctly
 
 ### P9 — Static quality gates
 - [ ] Ruff lint + formatter policy; mypy/pyright on public/core; pre-commit hooks
@@ -127,6 +128,22 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-11: **P8 complete.** Reorganised test suite into five categories:
+  `tests/{unit,property,integration,regression,live}` with per-category
+  `conftest.py` auto-marking.  Flat test files migrated to appropriate
+  directories (test_iv, test_svi, test_pricers, test_arbitrage, test_filters,
+  test_forwards → unit; test_fetcher, test_high_level_api, test_surface,
+  test_surface_plotting, test_p6, test_p7, test_persistence → integration).
+  Two new markers registered: `property` and `regression`.  Created
+  `tests/regression/` with deterministic golden calibration fixture (flat-vol
+  synthetic dataset, 7 calibration regression tests) and wheel-install smoke
+  test (import, API availability, pricing round-trip).  Coverage baseline
+  measured at 92% line coverage (2036 lines, 163 missing) via pytest-cov;
+  `tool.coverage` configuration added to pyproject.toml.  Cleaned stale
+  `volsurface` editable install from venv.  All four test commands verified
+  working: `pytest -q`, `pytest -m "not live and not benchmark"`,
+  `pytest -m live`, `pytest -m benchmark`.  437 tests pass (+9 new P8).
+  Build + twine check green.  Wheel installs + imports in clean venv.
 - 2026-08-10: **P7 complete.** Created `src/volfoundry/tolerances.py` with central
   named tolerances (PRICE_TOL, VOL_TOL, ARBITRAGE_TOL, CALIBRATION_TOL) and
   derived constants (EPSILON, VEGA_FLOOR, SIGMA_FLOOR, A_FLOOR, B_FLOOR, RHO_TOL,
