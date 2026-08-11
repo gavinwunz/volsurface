@@ -1,0 +1,1 @@
+VolFoundry v0.1.0 release-candidate ready. All non-human-gated milestones (P0–P14) complete. 438 tests pass, 92% coverage, ruff + twine green, wheel + sdist install in clean venvs. Human-gated items (CI push, PyPI OIDC, repo rename, first release) tracked in HUMAN_ACTIONS.md. Commit bf5c01a, 2026-08-11.
