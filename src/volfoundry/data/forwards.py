@@ -24,7 +24,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -51,7 +50,7 @@ class ForwardResult:
 
 def extract_forwards(
     df: pd.DataFrame,
-    reference_time: Optional[datetime] = None,
+    reference_time: datetime | None = None,
     min_pairs: int = 3,
 ) -> dict[datetime, ForwardResult]:
     """Extract forward prices per expiry from put-call parity.
@@ -127,7 +126,7 @@ def extract_forwards(
         X = np.column_stack([np.ones_like(y), merged["strike"].values])  # [1, K]
 
         # OLS: theta = (X^T X)^{-1} X^T y
-        theta, residuals, rank, singular = np.linalg.lstsq(X, y, rcond=None)
+        theta, _residuals, _rank, _singular = np.linalg.lstsq(X, y, rcond=None)
 
         alpha, beta = theta[0], theta[1]  # alpha = exp(-rT) * F, beta = -exp(-rT)
 
@@ -174,9 +173,7 @@ def extract_forwards(
     return results
 
 
-def compute_time_to_expiry(
-    expiries: list[datetime], reference_time: datetime
-) -> np.ndarray:
+def compute_time_to_expiry(expiries: list[datetime], reference_time: datetime) -> np.ndarray:
     """Compute time-to-expiry in years for a list of expiry datetimes."""
     ref = pd.Timestamp(reference_time)
     return np.array(

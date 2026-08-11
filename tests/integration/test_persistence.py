@@ -6,7 +6,6 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pandas as pd
 import pytest
 
 from volfoundry.data.fetcher import OptionQuote, Snapshot

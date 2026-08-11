@@ -31,7 +31,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Callable, Optional, Tuple
 
 import numpy as np
 from numpy.linalg import LinAlgError
@@ -39,10 +38,8 @@ from scipy.optimize import minimize
 
 from volfoundry.svi.parameterization import (
     SviParams,
-    clip_params_to_valid,
     svi_total_variance,
 )
-
 from volfoundry.tolerances import A_FLOOR, B_FLOOR, CALIBRATION_TOL, EPSILON, R2_FLOOR, SIGMA_FLOOR
 
 logger = logging.getLogger(__name__)
@@ -111,7 +108,7 @@ def _inner_lls(
     weights: np.ndarray,
     m: float,
     sigma: float,
-) -> Tuple[Optional[SviParams], float]:
+) -> tuple[SviParams | None, float]:
     """Solve the inner linear least-squares problem for fixed (m, sigma).
 
     Parameters
@@ -145,7 +142,7 @@ def _inner_lls(
     yw = W_diag * w_observed
 
     try:
-        beta, residuals, rank, singular = np.linalg.lstsq(Xw, yw, rcond=None)
+        beta, _residuals, _rank, _singular = np.linalg.lstsq(Xw, yw, rcond=None)
     except LinAlgError:
         return None, np.inf
 
@@ -163,10 +160,7 @@ def _inner_lls(
         rho = 0.0
         b = max(b, abs(beta1) + 0.001)  # ensure b >= |beta1|
     else:
-        if abs(beta1) >= b:
-            rho = np.sign(beta1) * 0.999
-        else:
-            rho = beta1 / b
+        rho = np.sign(beta1) * 0.999 if abs(beta1) >= b else beta1 / b
 
     params = SviParams(a=a, b=b, rho=rho, m=m, sigma=sigma)
 
@@ -221,11 +215,11 @@ def calibrate_svi_slice(
     k: np.ndarray,
     w_observed: np.ndarray,
     T: float,
-    weights: Optional[np.ndarray] = None,
-    m_init: Optional[float] = None,
-    sigma_init: Optional[float] = None,
-    m_bounds: Tuple[float, float] = DEFAULT_M_BOUNDS,
-    sigma_bounds: Tuple[float, float] = DEFAULT_SIGMA_BOUNDS,
+    weights: np.ndarray | None = None,
+    m_init: float | None = None,
+    sigma_init: float | None = None,
+    m_bounds: tuple[float, float] = DEFAULT_M_BOUNDS,
+    sigma_bounds: tuple[float, float] = DEFAULT_SIGMA_BOUNDS,
     method: str = "L-BFGS-B",
     outer_tol: float = CALIBRATION_TOL,
     max_iter: int = 500,
@@ -300,7 +294,7 @@ def calibrate_svi_slice(
     m_opt, sigma_opt = float(result.x[0]), max(float(result.x[1]), SIGMA_FLOOR)
 
     # Recover final parameters from inner solve
-    final_params, final_obj = _inner_lls(k, w_observed, weights, m_opt, sigma=sigma_opt)
+    final_params, _final_obj = _inner_lls(k, w_observed, weights, m_opt, sigma=sigma_opt)
 
     if final_params is None:
         # Fallback: build params from bounds
@@ -313,14 +307,16 @@ def calibrate_svi_slice(
         )
 
     # Compute diagnostics
-    w_fitted = svi_total_variance(k, final_params)
+    w_fitted_arr = np.asarray(svi_total_variance(k, final_params))
+    w_observed_arr = np.asarray(w_observed)
+    weights_arr = np.asarray(weights)
 
     # Weighted RMSE
-    weighted_ss = float(np.sum(weights * (w_observed - w_fitted) ** 2))
+    weighted_ss = float(np.sum(weights_arr * (w_observed_arr - w_fitted_arr) ** 2))
     rmse = np.sqrt(weighted_ss / n)
 
     # Unweighted RMSE
-    unweighted_ss = float(np.sum((w_observed - w_fitted) ** 2))
+    unweighted_ss = float(np.sum((w_observed_arr - w_fitted_arr) ** 2))
     rmse_unweighted = np.sqrt(unweighted_ss / n)
 
     # R-squared
@@ -353,7 +349,7 @@ def build_vega_weights(
     F: float,
     r: float,
     sigma_guess: float = 0.5,
-    option_type_strs: Optional[np.ndarray] = None,
+    option_type_strs: np.ndarray | None = None,
 ) -> np.ndarray:
     """Build observation weights proportional to Black-76 vega.
 
@@ -380,16 +376,15 @@ def build_vega_weights(
     ndarray
         Normalised vega weights (sum to n).
     """
-    from volfoundry.iv.black_scholes import black76_vega, OptionType
+    from volfoundry.iv.black_scholes import OptionType, black76_vega
 
     n = len(k)
     weights = np.empty(n)
     K_array = F * np.exp(k)
 
     for i in range(n):
-        ot = OptionType.CALL
         if option_type_strs is not None:
-            ot = OptionType.CALL if option_type_strs[i] == "C" else OptionType.PUT
+            OptionType.CALL if option_type_strs[i] == "C" else OptionType.PUT
         v = black76_vega(F, float(K_array[i]), sigma_guess, T, r)
         weights[i] = max(v, EPSILON)
 

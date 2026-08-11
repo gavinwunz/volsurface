@@ -12,7 +12,7 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -48,9 +48,7 @@ def _build_metadata(snapshot: Snapshot) -> dict:
     }
 
 
-def write_snapshot(
-    snapshot: Snapshot, data_dir: str | Path | None = None
-) -> Path:
+def write_snapshot(snapshot: Snapshot, data_dir: str | Path | None = None) -> Path:
     """Persist *snapshot* atomically to a timestamped parquet file.
 
     Parameters
@@ -90,9 +88,7 @@ def write_snapshot(
     # then atomically rename into place.  This prevents partial
     # writes from being observed.
     try:
-        fd, tmp_path = tempfile.mkstemp(
-            suffix=".parquet", prefix=".tmp_", dir=str(root)
-        )
+        fd, tmp_path = tempfile.mkstemp(suffix=".parquet", prefix=".tmp_", dir=str(root))
         os.close(fd)
         tmp_file = Path(tmp_path)
         df.to_parquet(tmp_file, index=False)
@@ -101,26 +97,19 @@ def write_snapshot(
     except OSError as exc:
         if tmp_file.exists():
             tmp_file.unlink(missing_ok=True)
-        raise PersistenceError(
-            f"Failed to write snapshot to {target_path}: {exc}"
-        ) from exc
+        raise PersistenceError(f"Failed to write snapshot to {target_path}: {exc}") from exc
 
     # Store metadata via PyArrow's custom metadata by reopening
     # (Parquet metadata is stored in the file footer, so we need
     # to read-write; this is a small file so it's fine.)
     try:
-        import pyarrow as pa
         import pyarrow.parquet as pq
 
         table = pq.read_table(target_path)
-        table = table.replace_schema_metadata(
-            {**(table.schema.metadata or {}), **metadata}
-        )
+        table = table.replace_schema_metadata({**(table.schema.metadata or {}), **metadata})
         pq.write_table(table, target_path)
     except Exception:
-        logger.debug(
-            "Could not attach schema metadata to %s (non-critical)", target_path
-        )
+        logger.debug("Could not attach schema metadata to %s (non-critical)", target_path)
 
     return target_path
 
@@ -175,10 +164,10 @@ def read_snapshot(path: str | Path, validate_schema: bool = True) -> pd.DataFram
                 schema_ver = schema_ver.decode("ascii")
             try:
                 ver = int(schema_ver)
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as exc:
                 raise PersistenceError(
                     f"Snapshot {p} has unparseable schema version: {schema_ver!r}"
-                )
+                ) from exc
             if ver > _CURRENT_SCHEMA_VERSION:
                 raise PersistenceError(
                     f"Snapshot {p} has schema version {ver}, "
@@ -190,9 +179,7 @@ def read_snapshot(path: str | Path, validate_schema: bool = True) -> pd.DataFram
     return pd.read_parquet(p)
 
 
-def list_snapshots(
-    currency: str | None = None, data_dir: str | Path | None = None
-) -> list[Path]:
+def list_snapshots(currency: str | None = None, data_dir: str | Path | None = None) -> list[Path]:
     """List all snapshot files, optionally filtered by currency."""
     root = Path(data_dir) if data_dir else DEFAULT_DATA_DIR
     if not root.exists():

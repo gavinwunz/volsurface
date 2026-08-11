@@ -13,8 +13,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta, timezone
-from typing import Optional
+from datetime import datetime, timezone
 
 import pandas as pd
 
@@ -48,9 +47,9 @@ def filter_zero_bid_ask(df: pd.DataFrame) -> _FilterResult:
     dropped = before - len(result)
 
     if dropped:
-        names = df.loc[~mask, "instrument_name"].tolist()
+        df.loc[~mask, "instrument_name"].tolist()
         # Distinguish zero-bid, zero-ask, and negative for diagnostics
-        for i, row in df[~mask].iterrows():
+        for _i, row in df[~mask].iterrows():
             name = row.get("instrument_name", "")
             if row["bid"] <= 0:
                 reason = "negative_bid" if row["bid"] < 0 else "zero_bid"
@@ -80,10 +79,9 @@ def filter_crossed(df: pd.DataFrame) -> _FilterResult:
     if dropped:
         for _, row in df[~mask].iterrows():
             name = row.get("instrument_name", "")
-            removals.append(QuoteRemovalRecord(
-                name, "crossed_market",
-                f"bid={row['bid']} > ask={row['ask']}"
-            ))
+            removals.append(
+                QuoteRemovalRecord(name, "crossed_market", f"bid={row['bid']} > ask={row['ask']}")
+            )
         logger.debug("Crossed-market filter: dropped %d/%d rows", dropped, before)
 
     return _FilterResult(df=result, removals=removals)
@@ -92,7 +90,7 @@ def filter_crossed(df: pd.DataFrame) -> _FilterResult:
 def filter_min_days_to_expiry(
     df: pd.DataFrame,
     min_days: float = MIN_DAYS_TO_EXPIRY,
-    reference_time: Optional[datetime] = None,
+    reference_time: datetime | None = None,
 ) -> _FilterResult:
     """Drop rows where time-to-expiry is less than *min_days*.
 
@@ -126,13 +124,16 @@ def filter_min_days_to_expiry(
         for _, row in df[~mask].iterrows():
             name = row.get("instrument_name", "")
             tte_val = (row["expiry"] - reference_time).total_seconds() / 86400.0
-            removals.append(QuoteRemovalRecord(
-                name, "near_expiry",
-                f"{tte_val:.2f} days to expiry < {min_days} minimum"
-            ))
+            removals.append(
+                QuoteRemovalRecord(
+                    name, "near_expiry", f"{tte_val:.2f} days to expiry < {min_days} minimum"
+                )
+            )
         logger.debug(
             "Min-days-to-expiry filter (< %.1f days): dropped %d/%d rows",
-            min_days, dropped, before,
+            min_days,
+            dropped,
+            before,
         )
 
     return _FilterResult(df=result, removals=removals)
@@ -141,7 +142,7 @@ def filter_min_days_to_expiry(
 def clean_quotes(
     df: pd.DataFrame,
     min_days: float = MIN_DAYS_TO_EXPIRY,
-    reference_time: Optional[datetime] = None,
+    reference_time: datetime | None = None,
 ) -> tuple[pd.DataFrame, QuoteCleaningReport]:
     """Apply all data-layer filters and return a cleaning report.
 
@@ -166,7 +167,7 @@ def clean_quotes(
     current = df
     for filter_fn in (filter_zero_bid_ask, filter_crossed, filter_min_days_to_expiry):
         if filter_fn is filter_min_days_to_expiry:
-            result = filter_fn(current, min_days=min_days, reference_time=reference_time)
+            result = filter_fn(current, min_days=min_days, reference_time=reference_time)  # type: ignore[call-arg]
         else:
             result = filter_fn(current)
         current = result.df
@@ -181,5 +182,7 @@ def clean_quotes(
         removed_counts=removed_counts,
         removal_records=tuple(all_removals),
     )
-    logger.info("clean_quotes: %d -> %d rows (dropped %d)", raw_count, retained, raw_count - retained)
+    logger.info(
+        "clean_quotes: %d -> %d rows (dropped %d)", raw_count, retained, raw_count - retained
+    )
     return current, report

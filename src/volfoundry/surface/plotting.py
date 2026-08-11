@@ -13,11 +13,10 @@ suitable for CI/headless environments.
 from __future__ import annotations
 
 import logging
-import textwrap
 from pathlib import Path
-from typing import Optional
 
 import matplotlib
+
 matplotlib.use("Agg")  # Headless-safe
 import matplotlib.pyplot as plt
 import numpy as np
@@ -25,16 +24,11 @@ import numpy as np
 from volfoundry.arbitrage.checks import (
     ArbitrageCheckResult,
     butterfly_g,
-    calendar_monotonicity,
 )
 from volfoundry.surface.ssvi import (
     SsviParams,
     ssvi_implied_vol,
     ssvi_total_variance,
-)
-from volfoundry.svi.parameterization import (
-    SviParams,
-    svi_first_derivative,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,12 +37,14 @@ logger = logging.getLogger(__name__)
 # Global style
 # ---------------------------------------------------------------------------
 
-plt.rcParams.update({
-    "figure.dpi": 120,
-    "savefig.dpi": 150,
-    "savefig.bbox": "tight",
-    "font.size": 9,
-})
+plt.rcParams.update(
+    {
+        "figure.dpi": 120,
+        "savefig.dpi": 150,
+        "savefig.bbox": "tight",
+        "font.size": 9,
+    }
+)
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +60,7 @@ def plot_3d_surface(
     n_k: int = 100,
     azimuth: float = -60.0,
     elevation: float = 25.0,
-    output_path: Optional[str | Path] = None,
+    output_path: str | Path | None = None,
 ) -> plt.Figure:
     """Plot a 3D implied volatility surface.
 
@@ -100,24 +96,28 @@ def plot_3d_surface(
 
     # Compute implied vol surface
     iv_surface = np.zeros_like(K)
-    for j, (T_j, theta_j) in enumerate(zip(T_values, params.theta_grid)):
+    for j, (T_j, theta_j) in enumerate(zip(T_values, params.theta_grid, strict=False)):
         phi_j = params.phi(float(theta_j))
-        iv_surface[j, :] = ssvi_implied_vol(k_grid, float(theta_j), float(phi_j),
-                                            params.rho, float(T_j))
+        iv_surface[j, :] = ssvi_implied_vol(
+            k_grid, float(theta_j), float(phi_j), params.rho, float(T_j)
+        )
 
     fig = plt.figure(figsize=(12, 8))
     ax = fig.add_subplot(111, projection="3d")
 
-    surf = ax.plot_surface(K, T_mesh, iv_surface, cmap="viridis",
-                           linewidth=0, antialiased=True, alpha=0.9)
+    surf = ax.plot_surface(
+        K, T_mesh, iv_surface, cmap="viridis", linewidth=0, antialiased=True, alpha=0.9
+    )
 
     ax.set_xlabel("Log-moneyness k = log(K/F)")
     ax.set_ylabel("Time to expiry T (years)")
     ax.set_zlabel("Implied volatility σ_IV")
 
     ax.view_init(elevation, azimuth)
-    ax.set_title(f"SSVI Implied Volatility Surface (ρ={params.rho:.3f}, "
-                 f"η={params.eta:.3f}, λ={params.lamb:.3f})")
+    ax.set_title(
+        f"SSVI Implied Volatility Surface (ρ={params.rho:.3f}, "
+        f"η={params.eta:.3f}, λ={params.lamb:.3f})"
+    )
 
     fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10, label="σ_IV")
 
@@ -137,7 +137,7 @@ def plot_skew_term_structure(
     params: SsviParams,
     T_values: np.ndarray,
     k_atm_window: float = 0.1,
-    output_path: Optional[str | Path] = None,
+    output_path: str | Path | None = None,
 ) -> plt.Figure:
     """Plot the skew term structure: ATM skew slope vs expiry.
 
@@ -164,7 +164,7 @@ def plot_skew_term_structure(
         raise ValueError("SsviParams.theta_grid must be populated")
 
     skew_values = []
-    for theta_j, T_j in zip(params.theta_grid, T_values):
+    for theta_j, T_j in zip(params.theta_grid, T_values, strict=False):
         phi_j = params.phi(float(theta_j))
         # Total variance at ATM (k=0)
         w_atm = float(ssvi_total_variance(0.0, float(theta_j), float(phi_j), params.rho))
@@ -188,16 +188,20 @@ def plot_skew_term_structure(
     ax.axhline(y=0, color="gray", linestyle="--", linewidth=0.8)
     ax.set_xlabel("Time to expiry T (years)")
     ax.set_ylabel("ATM IV skew dσ_IV/dk|_{k=0}")
-    ax.set_title(f"Skew Term Structure (ρ={params.rho:.3f}, "
-                 f"η={params.eta:.3f}, λ={params.lamb:.3f})")
+    ax.set_title(
+        f"Skew Term Structure (ρ={params.rho:.3f}, η={params.eta:.3f}, λ={params.lamb:.3f})"
+    )
     ax.grid(True, alpha=0.3)
 
     # Annotate with the power-law exponent
-    ax.text(0.02, 0.95,
-            f"λ = {params.lamb:.3f}\n"
-            f"Decay: ~T^{{-λ}}",
-            transform=ax.transAxes, va="top",
-            bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.8))
+    ax.text(
+        0.02,
+        0.95,
+        f"λ = {params.lamb:.3f}\nDecay: ~T^{{-λ}}",
+        transform=ax.transAxes,
+        va="top",
+        bbox={"boxstyle": "round,pad=0.3", "facecolor": "lightyellow", "alpha": 0.8},
+    )
 
     if output_path:
         fig.savefig(output_path)
@@ -213,11 +217,11 @@ def plot_skew_term_structure(
 
 def plot_gk_diagnostics(
     slice_results: list[ArbitrageCheckResult],
-    k_grid: Optional[np.ndarray] = None,
+    k_grid: np.ndarray | None = None,
     k_min: float = -3.0,
     k_max: float = 3.0,
     n_k: int = 500,
-    output_path: Optional[str | Path] = None,
+    output_path: str | Path | None = None,
 ) -> plt.Figure:
     """Plot g(k) butterfly diagnostic for multiple slices.
 
@@ -255,8 +259,7 @@ def plot_gk_diagnostics(
         g = butterfly_g(k_grid, result.params, result.T)
         ax.plot(k_grid, g, color="steelblue", linewidth=1.2)
         ax.axhline(y=0, color="red", linestyle="--", linewidth=0.8, alpha=0.5)
-        ax.fill_between(k_grid, 0, g, where=(g < 0), color="red", alpha=0.2,
-                        label="Violation")
+        ax.fill_between(k_grid, 0, g, where=(g < 0), color="red", alpha=0.2, label="Violation")
         ax.set_xlabel("k = log(K/F)")
         ax.set_ylabel("g(k)")
         status = "✓ PASS" if result.butterfly_passed else "✗ REJECTED"
@@ -291,7 +294,7 @@ def plot_iv_smile_cross_section(
     k_min: float = -2.0,
     k_max: float = 2.0,
     n_k: int = 200,
-    output_path: Optional[str | Path] = None,
+    output_path: str | Path | None = None,
 ) -> plt.Figure:
     """Plot implied volatility smiles across multiple expiries.
 
@@ -321,12 +324,10 @@ def plot_iv_smile_cross_section(
 
     colors = plt.cm.viridis(np.linspace(0.15, 0.85, len(T_values)))
 
-    for idx, (T_j, theta_j) in enumerate(zip(T_values, params.theta_grid)):
+    for idx, (T_j, theta_j) in enumerate(zip(T_values, params.theta_grid, strict=False)):
         phi_j = params.phi(float(theta_j))
-        iv = ssvi_implied_vol(k_grid, float(theta_j), float(phi_j),
-                              params.rho, float(T_j))
-        ax.plot(k_grid, iv, color=colors[idx], linewidth=1.5,
-                label=f"T={T_j:.3f}")
+        iv = ssvi_implied_vol(k_grid, float(theta_j), float(phi_j), params.rho, float(T_j))
+        ax.plot(k_grid, iv, color=colors[idx], linewidth=1.5, label=f"T={T_j:.3f}")
 
     ax.set_xlabel("Log-moneyness k = log(K/F)")
     ax.set_ylabel("Implied volatility σ_IV")
@@ -348,11 +349,11 @@ def plot_iv_smile_cross_section(
 
 def write_surface_report(
     slice_results: list[ArbitrageCheckResult],
-    calendar_passed: Optional[bool],
+    calendar_passed: bool | None,
     calendar_violations: list,
-    ssvi_params: Optional[SsviParams] = None,
+    ssvi_params: SsviParams | None = None,
     title: str = "SVI Surface Validation Report",
-    output_path: Optional[str | Path] = None,
+    output_path: str | Path | None = None,
 ) -> str:
     """Write a human-readable surface validation report.
 
@@ -390,9 +391,13 @@ def write_surface_report(
         lines.append(f"  λ (power-law):     {ssvi_params.lamb:.6f}")
         if ssvi_params.theta_grid is not None:
             lines.append(f"  n slices:          {len(ssvi_params.theta_grid)}")
-            lines.append(f"  theta range:       [{ssvi_params.theta_grid[0]:.4f}, "
-                         f"{ssvi_params.theta_grid[-1]:.4f}]")
-        lines.append(f"  Lee bound satisfied: {'Yes' if ssvi_params.satisfies_lee_bound() else 'No'}")
+            lines.append(
+                f"  theta range:       [{ssvi_params.theta_grid[0]:.4f}, "
+                f"{ssvi_params.theta_grid[-1]:.4f}]"
+            )
+        lines.append(
+            f"  Lee bound satisfied: {'Yes' if ssvi_params.satisfies_lee_bound() else 'No'}"
+        )
         lines.append("")
 
     # Slice table
@@ -409,8 +414,7 @@ def write_surface_report(
         bf_str = "PASS" if r.butterfly_passed else "FAIL"
         bl_str = "PASS" if r.bl_passed else ("FAIL" if r.bl_passed is not None else "N/A")
         lines.append(
-            f"  {r.slice_id:<20s} {r.T:>8.4f} {bf_str:>10s} "
-            f"{r.butterfly_min_g:>12.6e} {bl_str:>6s}"
+            f"  {r.slice_id:<20s} {r.T:>8.4f} {bf_str:>10s} {r.butterfly_min_g:>12.6e} {bl_str:>6s}"
         )
         if r.butterfly_passed:
             n_passed += 1
@@ -427,8 +431,10 @@ def write_surface_report(
                 lines.append(f"    T={T_i:.4f} → T={T_j:.4f}")
     lines.append("")
 
-    overall = (n_rejected == 0 and (calendar_passed is None or calendar_passed))
-    lines.append(f"Overall: {'✓ PASS (arbitrage-free surface)' if overall else '✗ FAIL (arbitrage detected)'}")
+    overall = n_rejected == 0 and (calendar_passed is None or calendar_passed)
+    lines.append(
+        f"Overall: {'✓ PASS (arbitrage-free surface)' if overall else '✗ FAIL (arbitrage detected)'}"
+    )
     lines.append("")
 
     report = "\n".join(lines)

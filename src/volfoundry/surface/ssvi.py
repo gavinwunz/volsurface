@@ -45,12 +45,10 @@ Gatheral, J. and Jacquier, A. (2014). "Arbitrage-free SVI volatility surfaces."
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
 from volfoundry.svi.parameterization import SviParams
-
 
 # ---------------------------------------------------------------------------
 # SSVI global parameters
@@ -86,7 +84,7 @@ class SsviParams:
     rho: float
     eta: float
     lamb: float
-    theta_grid: Optional[np.ndarray] = None
+    theta_grid: np.ndarray | None = None
 
     def __post_init__(self) -> None:
         if not (-1.0 < self.rho < 1.0):
@@ -112,7 +110,7 @@ class SsviParams:
         theta = np.asarray(theta, dtype=float)
         if np.any(theta <= 0):
             raise ValueError("theta must be positive")
-        return self.eta / (theta ** self.lamb)
+        return self.eta / (theta**self.lamb)
 
     def satisfies_lee_bound(self) -> bool:
         """Check Lee moment formula bound: $eta (1 + |rho|) leq 2$.
@@ -242,9 +240,7 @@ def ssvi_total_variance_surface(
 # ---------------------------------------------------------------------------
 
 
-def ssvi_to_raw_svi(
-    theta: float, phi_val: float, rho: float
-) -> SviParams:
+def ssvi_to_raw_svi(theta: float, phi_val: float, rho: float) -> SviParams:
     """Map an SSVI slice to equivalent raw SVI parameters.
 
     The SSVI form:
@@ -282,8 +278,7 @@ def ssvi_to_raw_svi(
     m = -rho / phi_val
     sigma = np.sqrt(one_minus_rho2) / phi_val
 
-    return SviParams(a=float(a), b=float(b), rho=float(rho),
-                     m=float(m), sigma=float(sigma))
+    return SviParams(a=float(a), b=float(b), rho=float(rho), m=float(m), sigma=float(sigma))
 
 
 def ssvi_to_raw_svi_surface(params: SsviParams) -> list[tuple[float, SviParams]]:

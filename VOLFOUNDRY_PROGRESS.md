@@ -75,8 +75,8 @@ append a dated line (newest first) to the session log.
 - [x] conftest.py per-category auto-marking; `pytest -m unit` / `-m integration` / `-m regression` select correctly
 
 ### P9 — Static quality gates
-- [ ] Ruff lint + formatter policy; mypy/pyright on public/core; pre-commit hooks
-- [ ] `py.typed` if type coverage sufficient; one dev command (nox/tox/Make) runs format+lint+type+tests+build
+- [x] Ruff lint + formatter policy; mypy/pyright on public/core; pre-commit hooks
+- [x] `py.typed` if type coverage sufficient; one dev command (nox/tox/Make) runs format+lint+type+tests+build
 
 ### P10 — CI (GitHub Actions)
 - [ ] `.github/workflows/ci.yml`: lint, type, tests across supported Pythons, build, wheel install smoke
@@ -128,6 +128,17 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-11: **P9 complete.** Ruff configured in pyproject.toml (F/E/W/I/UP/B/C4/SIM/RUF/BLE
+  rules, line-length 100).  151 auto-fixed violations, remaining 43 handled via
+  per-file-ignores for intentional math notation (Greek/en-dash/×) and legitimate
+  blind-except patterns.  Ruff format applied to all 55 source+test files.  mypy
+  strict-mode: 15 errors across 3 files resolved (calibration ndarray casts,
+  builder type annotations, fetcher json=payload ignore, pricers dict-item
+  suppress).  `.pre-commit-config.yaml` with ruff + ruff-format + mypy hooks.
+  `Makefile` with lint/format/typecheck/test/test-all/test-live/test-bench/build/
+  clean targets.  `py.typed` marker already present.  dev deps updated (mypy,
+  pre-commit, check-manifest).  438 tests pass, mypy clean (30 files, 0 errors),
+  ruff clean (0 errors).  Build + twine check green.
 - 2026-08-11: **P8 complete.** Reorganised test suite into five categories:
   `tests/{unit,property,integration,regression,live}` with per-category
   `conftest.py` auto-marking.  Flat test files migrated to appropriate

@@ -32,14 +32,11 @@ are provided for batch pricing and Greeks computations.
 from __future__ import annotations
 
 import math
-from enum import Enum
-from typing import Optional, Union
 
 import numpy as np
 
 from volfoundry.iv.black_scholes import (  # shared primitives
     OptionType,
-    SQRT2PI,
     black76_price,
     black76_vega,
     norm_cdf,
@@ -52,18 +49,18 @@ from volfoundry.iv.black_scholes import (  # shared primitives
 
 __all__ = [
     "OptionType",
+    "black76_all_greeks",
+    "black76_delta",
+    "black76_gamma",
     "black76_price",
+    "black76_rho",
+    "black76_theta",
     "black76_vega",
     "norm_cdf",
     "norm_pdf",
-    "black76_delta",
-    "black76_gamma",
-    "black76_theta",
-    "black76_rho",
-    "black76_all_greeks",
-    "price_and_greeks_vectorized",
     "parity_check_call",
     "parity_check_put",
+    "price_and_greeks_vectorized",
 ]
 
 
@@ -192,14 +189,14 @@ def black76_all_greeks(
     if sigma <= 0 or T <= 0 or F <= 0 or K <= 0:
         # Degenerate case
         df = math.exp(-r * T)
-        if option_type == OptionType.CALL:
-            intrinsic = max(F - K, 0.0)
-        else:
-            intrinsic = max(K - F, 0.0)
+        intrinsic = max(F - K, 0.0) if option_type == OptionType.CALL else max(K - F, 0.0)
         return {
             "price": float(df * intrinsic),
-            "delta": float(df if option_type == OptionType.CALL and F > K else
-                           (-df if option_type == OptionType.PUT and K > F else 0.0)),
+            "delta": float(
+                df
+                if option_type == OptionType.CALL and F > K
+                else (-df if option_type == OptionType.PUT and K > F else 0.0)
+            ),
             "gamma": 0.0,
             "vega": 0.0,
             "theta": 0.0,
@@ -219,9 +216,9 @@ def black76_all_greeks(
         nd2 = norm_cdf(d2)
         price = float(df * (F * nd1 - K * nd2))
         delta = float(df * nd1)
-        theta = float(-F * sigma * npdf_d1 / (2.0 * sqrt_t) * df
-                      + r * F * nd1 * df
-                      - r * K * nd2 * df)
+        theta = float(
+            -F * sigma * npdf_d1 / (2.0 * sqrt_t) * df + r * F * nd1 * df - r * K * nd2 * df
+        )
     else:
         nd1 = norm_cdf(d1)
         nd2 = norm_cdf(d2)
@@ -229,15 +226,15 @@ def black76_all_greeks(
         n_nd2 = norm_cdf(-d2)
         price = float(df * (K * n_nd2 - F * n_nd1))
         delta = float(df * (nd1 - 1.0))
-        theta = float(-F * sigma * npdf_d1 / (2.0 * sqrt_t) * df
-                      - r * F * n_nd1 * df
-                      + r * K * n_nd2 * df)
+        theta = float(
+            -F * sigma * npdf_d1 / (2.0 * sqrt_t) * df - r * F * n_nd1 * df + r * K * n_nd2 * df
+        )
 
     gamma = float(df * npdf_d1 / (F * sigma_sqrt_T))
     vega = float(df * F * sqrt_t * npdf_d1)
     rho = -T * price
 
-    return {
+    return {  # type: ignore[dict-item]
         "price": price,
         "delta": delta,
         "gamma": gamma,
@@ -296,7 +293,9 @@ def price_and_greeks_vectorized(
     theta = -F * sigma * npdf_d1 / (2.0 * np.sqrt(T))
     rho_g = -T * price
 
-    return {
+    # The function body casts inputs to ndarray; return types are always arrays.
+    # mypy infers correctly but strict dict-value variance triggers; suppress.
+    return {  # type: ignore[dict-item]
         "price": price,
         "delta": delta,
         "gamma": gamma,

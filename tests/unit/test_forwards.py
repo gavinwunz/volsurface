@@ -6,7 +6,6 @@ from datetime import datetime, timezone
 
 import numpy as np
 import pandas as pd
-import pytest
 
 from volfoundry.data.forwards import ForwardResult, compute_time_to_expiry, extract_forwards
 
@@ -20,13 +19,15 @@ def _make_df(
 ) -> pd.DataFrame:
     """Build a minimal DataFrame with option_type, strike, mid, expiry."""
     snap = snapshot_ts or datetime(2025, 3, 21, 0, 0, tzinfo=timezone.utc)
-    return pd.DataFrame({
-        "expiry": [expiry] * len(strikes),
-        "option_type": [option_type] * len(strikes),
-        "strike": strikes,
-        "mid": mids,
-        "snapshot_ts": [snap] * len(strikes),
-    })
+    return pd.DataFrame(
+        {
+            "expiry": [expiry] * len(strikes),
+            "option_type": [option_type] * len(strikes),
+            "strike": strikes,
+            "mid": mids,
+            "snapshot_ts": [snap] * len(strikes),
+        }
+    )
 
 
 class TestExtractForwards:
@@ -63,7 +64,7 @@ class TestExtractForwards:
         results = extract_forwards(df, reference_time=ref)
 
         assert len(results) == 1
-        result = list(results.values())[0]
+        result = next(iter(results.values()))
         assert abs(result.F - F_true) < 1.0  # within 1 dollar
         assert abs(result.r - r) < 0.01
         assert result.r2 > 0.999
@@ -100,7 +101,7 @@ class TestExtractForwards:
 
         results = extract_forwards(df, reference_time=ref)
         assert len(results) == 1
-        result = list(results.values())[0]
+        result = next(iter(results.values()))
         assert abs(result.F - F_true) / F_true < 0.02  # within 2%
         assert result.r2 > 0.95
 
@@ -128,7 +129,7 @@ class TestExtractForwards:
         exp2 = datetime(2025, 9, 19, 8, 0, tzinfo=timezone.utc)
 
         frames = []
-        for (exp, T, df, F) in [(exp1, T1, df1, F1), (exp2, T2, df2, F2)]:
+        for exp, _T, df, F in [(exp1, T1, df1, F1), (exp2, T2, df2, F2)]:
             strikes = np.linspace(F * 0.8, F * 1.2, 10)
             cm, pm = [], []
             for K in strikes:

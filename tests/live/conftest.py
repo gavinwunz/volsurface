@@ -1,4 +1,5 @@
 """Auto-mark all tests in tests/live/ as @pytest.mark.live."""
+
 from __future__ import annotations
 
 import pytest

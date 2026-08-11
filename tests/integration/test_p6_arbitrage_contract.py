@@ -16,10 +16,7 @@ Seven required acceptance tests:
 
 from __future__ import annotations
 
-import math
-
 import numpy as np
-import pandas as pd
 import pytest
 
 from volfoundry import (
@@ -29,7 +26,6 @@ from volfoundry import (
     SurfaceFitResult,
     ValidationReport,
 )
-from volfoundry.svi.parameterization import SviParams
 from volfoundry.arbitrage.checks import (
     butterfly_g,
     butterfly_is_arbitrage_free,
@@ -37,7 +33,7 @@ from volfoundry.arbitrage.checks import (
     validate_surface,
 )
 from volfoundry.surface.ssvi import SsviParams, ssvi_to_raw_svi
-
+from volfoundry.svi.parameterization import SviParams
 
 # ===========================================================================
 # 1. Deliberately invalid SVI parameters are detected.
@@ -199,9 +195,7 @@ class TestReportModePreservesInvalid:
 
         # If invalid, the status must say so
         if not result.validation.is_valid:
-            assert result.calibration_status in (
-                "converged_invalid", "did_not_converge"
-            )
+            assert result.calibration_status in ("converged_invalid", "did_not_converge")
 
     def test_report_mode_invalid_result_has_rejection_details(self):
         """An invalid report-mode result must carry rejection reasons."""
@@ -231,15 +225,13 @@ class TestValidSsviPasses:
     def test_valid_ssvi_parameters_pass_lee_bound(self):
         """A standard SSVI parameter set with eta*(1+|rho|) <= 2 must
         satisfy the Lee bound."""
-        params = SsviParams(rho=-0.3, eta=1.2, lamb=0.3,
-                            theta_grid=np.array([0.04, 0.09, 0.16]))
+        params = SsviParams(rho=-0.3, eta=1.2, lamb=0.3, theta_grid=np.array([0.04, 0.09, 0.16]))
         assert params.satisfies_lee_bound()
 
     def test_valid_ssvi_slices_convert_correctly(self):
         """SSVI→raw SVI mapping must produce valid raw SVI params at each
         slice that pass butterfly checks."""
-        params = SsviParams(rho=-0.3, eta=1.2, lamb=0.3,
-                            theta_grid=np.array([0.04, 0.09, 0.16]))
+        params = SsviParams(rho=-0.3, eta=1.2, lamb=0.3, theta_grid=np.array([0.04, 0.09, 0.16]))
         ks = np.linspace(-3, 3, 200)
         for theta in params.theta_grid:
             phi = params.phi(float(theta))
@@ -249,11 +241,10 @@ class TestValidSsviPasses:
 
     def test_valid_ssvi_surface_passes_calendar(self):
         """SSVI with increasing theta_t must pass calendar monotonicity."""
-        params = SsviParams(rho=-0.3, eta=1.2, lamb=0.3,
-                            theta_grid=np.array([0.04, 0.09, 0.16]))
+        params = SsviParams(rho=-0.3, eta=1.2, lamb=0.3, theta_grid=np.array([0.04, 0.09, 0.16]))
         raw_slices = []
         Ts = [0.25, 0.5, 1.0]
-        for theta, T in zip(params.theta_grid, Ts):
+        for theta, T in zip(params.theta_grid, Ts, strict=False):
             phi = params.phi(float(theta))
             raw = ssvi_to_raw_svi(float(theta), float(phi), params.rho)
             raw_slices.append((raw, T))
@@ -264,8 +255,7 @@ class TestValidSsviPasses:
 
     def test_zero_rho_ssvi_is_valid(self):
         """rho=0 SSVI with conservative eta should be valid."""
-        params = SsviParams(rho=0.0, eta=1.0, lamb=0.3,
-                            theta_grid=np.array([0.04, 0.09, 0.16]))
+        params = SsviParams(rho=0.0, eta=1.0, lamb=0.3, theta_grid=np.array([0.04, 0.09, 0.16]))
         ks = np.linspace(-3, 3, 200)
         for theta in params.theta_grid:
             phi = params.phi(float(theta))
@@ -403,7 +393,10 @@ class TestToleranceInMetadata:
         for d in result.per_expiry_diagnostics:
             assert "svi_status" in d, f"Missing svi_status in {d}"
             assert d["svi_status"] in (
-                "valid", "converged_invalid", "did_not_converge", "not_fitted"
+                "valid",
+                "converged_invalid",
+                "did_not_converge",
+                "not_fitted",
             ), f"Unknown svi_status: {d.get('svi_status')}"
 
         # per_slice from the validation report

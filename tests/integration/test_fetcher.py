@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
@@ -17,10 +16,10 @@ from volfoundry.data.fetcher import (
 )
 from volfoundry.exceptions import MarketDataError
 
-
 # -----------------------------------------------------------------------
 # Test _rpc (with mocked requests)
 # -----------------------------------------------------------------------
+
 
 def test_rpc_returns_result():
     """_rpc calls POST and extracts 'result'."""
@@ -50,7 +49,8 @@ def test_rpc_raises_on_jsonrpc_error():
     mock_session = MagicMock()
     mock_resp = MagicMock()
     mock_resp.json.return_value = {
-        "error": {"code": -32601, "message": "Method not found"}, "id": 1
+        "error": {"code": -32601, "message": "Method not found"},
+        "id": 1,
     }
     mock_session.post.return_value = mock_resp
 
@@ -328,8 +328,9 @@ def test_quote_cleaning_report_summary():
 
 def test_build_session_has_user_agent():
     """Verify _build_session sets User-Agent header."""
-    from volfoundry.data.fetcher import _build_session, _USER_AGENT
+    from volfoundry.data.fetcher import _USER_AGENT, _build_session
+
     s = _build_session()
     assert "User-Agent" in s.headers
     assert "VolFoundry" in s.headers["User-Agent"]
-    assert _USER_AGENT == f"VolFoundry/0.1.0"
+    assert _USER_AGENT == "VolFoundry/0.1.0"

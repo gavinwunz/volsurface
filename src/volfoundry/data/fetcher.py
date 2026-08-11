@@ -16,7 +16,6 @@ import logging
 import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -137,7 +136,7 @@ class Snapshot:
     quotes: list[OptionQuote] = field(default_factory=list)
     forwards: dict[str, float] = field(default_factory=dict)
     schema_version: int = 1
-    cleaning_report: Optional[QuoteCleaningReport] = None
+    cleaning_report: QuoteCleaningReport | None = None
 
     def to_dataframe(self) -> pd.DataFrame:
         """Convert quotes to a DataFrame."""
@@ -174,7 +173,7 @@ class Snapshot:
 def _rpc(
     method: str,
     params: dict,
-    session: Optional[requests.Session] = None,
+    session: requests.Session | None = None,
     timeout: tuple[float, float] = (_CONNECT_TIMEOUT, _READ_TIMEOUT),
 ) -> dict:
     """Send a single JSON-RPC 2.0 request to Deribit.
@@ -184,36 +183,29 @@ def _rpc(
     s = session or _build_session()
     payload = {"jsonrpc": "2.0", "method": method, "params": params, "id": 1}
     try:
-        resp = s.post(DERIBIT_REST_URL, json=payload, timeout=timeout)
+        resp = s.post(DERIBIT_REST_URL, json=payload, timeout=timeout)  # type: ignore[arg-type]
         resp.raise_for_status()
     except requests.RequestException as exc:
-        raise MarketDataError(
-            f"Deribit RPC call '{method}' failed: {exc}"
-        ) from exc
+        raise MarketDataError(f"Deribit RPC call '{method}' failed: {exc}") from exc
 
     try:
         data = resp.json()
     except ValueError as exc:
-        raise MarketDataError(
-            f"Deribit RPC call '{method}' returned invalid JSON"
-        ) from exc
+        raise MarketDataError(f"Deribit RPC call '{method}' returned invalid JSON") from exc
 
     if "error" in data:
         err = data["error"]
         raise MarketDataError(
-            f"Deribit RPC error on '{method}': code={err.get('code')} "
-            f"message={err.get('message')}"
+            f"Deribit RPC error on '{method}': code={err.get('code')} message={err.get('message')}"
         )
     if "result" not in data:
-        raise MarketDataError(
-            f"Deribit RPC call '{method}': missing 'result' in response"
-        )
+        raise MarketDataError(f"Deribit RPC call '{method}': missing 'result' in response")
     return data["result"]
 
 
 def _batch_rpc(
     calls: list[tuple[str, dict]],
-    session: Optional[requests.Session] = None,
+    session: requests.Session | None = None,
     timeout: tuple[float, float] = (_CONNECT_TIMEOUT, _READ_TIMEOUT),
 ) -> list[dict]:
     """Send multiple JSON-RPC calls in one HTTP request.
@@ -222,11 +214,10 @@ def _batch_rpc(
     """
     s = session or _build_session()
     payload = [
-        {"jsonrpc": "2.0", "method": m, "params": p, "id": i}
-        for i, (m, p) in enumerate(calls)
+        {"jsonrpc": "2.0", "method": m, "params": p, "id": i} for i, (m, p) in enumerate(calls)
     ]
     try:
-        resp = s.post(DERIBIT_REST_URL, json=payload, timeout=timeout)
+        resp = s.post(DERIBIT_REST_URL, json=payload, timeout=timeout)  # type: ignore[arg-type]
         resp.raise_for_status()
         results = resp.json()
         if isinstance(results, dict):
@@ -240,9 +231,7 @@ def _batch_rpc(
                     f"code={r['error'].get('code')} message={r['error'].get('message')}"
                 )
             if "result" not in r:
-                raise MarketDataError(
-                    f"Deribit batch RPC: missing 'result' for id={r.get('id')}"
-                )
+                raise MarketDataError(f"Deribit batch RPC: missing 'result' for id={r.get('id')}")
             out.append(r["result"])
         return out
     except (requests.RequestException, MarketDataError, ValueError) as exc:
@@ -259,54 +248,53 @@ def _batch_rpc(
 # ---------------------------------------------------------------------------
 
 
-def _validate_raw_quote(
-    inst: dict, tk: dict, currency: str
-) -> list[QuoteRemovalRecord]:
+def _validate_raw_quote(inst: dict, tk: dict, currency: str) -> list[QuoteRemovalRecord]:
     """Validate a single raw quote and return removal reasons (empty if valid)."""
     removals: list[QuoteRemovalRecord] = []
     name = inst.get("instrument_name", "")
 
     if not name:
-        removals.append(QuoteRemovalRecord(
-            instrument_name="<unknown>", reason="missing_instrument_name"
-        ))
+        removals.append(
+            QuoteRemovalRecord(instrument_name="<unknown>", reason="missing_instrument_name")
+        )
         return removals
 
     raw_type = inst.get("option_type", "").upper()
     if raw_type not in ("CALL", "PUT", "C", "P"):
-        removals.append(QuoteRemovalRecord(
-            instrument_name=name, reason="invalid_option_type",
-            detail=f"option_type={raw_type!r}"
-        ))
+        removals.append(
+            QuoteRemovalRecord(
+                instrument_name=name,
+                reason="invalid_option_type",
+                detail=f"option_type={raw_type!r}",
+            )
+        )
 
     try:
         strike = float(inst["strike"])
     except (KeyError, ValueError, TypeError):
-        removals.append(QuoteRemovalRecord(
-            instrument_name=name, reason="invalid_strike"
-        ))
+        removals.append(QuoteRemovalRecord(instrument_name=name, reason="invalid_strike"))
         return removals
 
     if strike <= 0 or not np.isfinite(strike):
-        removals.append(QuoteRemovalRecord(
-            instrument_name=name, reason="invalid_strike",
-            detail=f"strike={strike}"
-        ))
+        removals.append(
+            QuoteRemovalRecord(
+                instrument_name=name, reason="invalid_strike", detail=f"strike={strike}"
+            )
+        )
 
     try:
         expiry_ms = int(inst["expiration_timestamp"])
         datetime.fromtimestamp(expiry_ms / 1000, tz=timezone.utc)
     except (KeyError, ValueError, TypeError, OverflowError):
-        removals.append(QuoteRemovalRecord(
-            instrument_name=name, reason="invalid_expiry"
-        ))
+        removals.append(QuoteRemovalRecord(instrument_name=name, reason="invalid_expiry"))
         return removals
 
     if not tk:
-        removals.append(QuoteRemovalRecord(
-            instrument_name=name, reason="non_finite_price",
-            detail="no ticker data"
-        ))
+        removals.append(
+            QuoteRemovalRecord(
+                instrument_name=name, reason="non_finite_price", detail="no ticker data"
+            )
+        )
         return removals
 
     try:
@@ -327,16 +315,22 @@ def _validate_raw_quote(
         underlying_price = float("nan")
 
     if not (np.isfinite(bid) and np.isfinite(ask) and np.isfinite(mid)):
-        removals.append(QuoteRemovalRecord(
-            instrument_name=name, reason="non_finite_price",
-            detail=f"bid={bid}, ask={ask}, mid={mid}"
-        ))
+        removals.append(
+            QuoteRemovalRecord(
+                instrument_name=name,
+                reason="non_finite_price",
+                detail=f"bid={bid}, ask={ask}, mid={mid}",
+            )
+        )
 
     if not np.isfinite(underlying_price) or underlying_price <= 0:
-        removals.append(QuoteRemovalRecord(
-            instrument_name=name, reason="non_finite_underlying",
-            detail=f"underlying_price={underlying_price}"
-        ))
+        removals.append(
+            QuoteRemovalRecord(
+                instrument_name=name,
+                reason="non_finite_underlying",
+                detail=f"underlying_price={underlying_price}",
+            )
+        )
 
     return removals
 
@@ -382,9 +376,7 @@ class DeribitPublicClient:
             self._timeout,
         )
         if not isinstance(result, list):
-            raise MarketDataError(
-                f"Expected list of instruments, got {type(result).__name__}"
-            )
+            raise MarketDataError(f"Expected list of instruments, got {type(result).__name__}")
         return result
 
     # -- tickers -------------------------------------------------------------
@@ -493,7 +485,9 @@ class DeribitPublicClient:
 
         logger.info(
             "Fetched %s: %d raw -> %d valid quotes",
-            currency, raw_count, len(validated_quotes),
+            currency,
+            raw_count,
+            len(validated_quotes),
         )
         logger.debug("Cleaning report:\n%s", cleaning_report.summary())
 

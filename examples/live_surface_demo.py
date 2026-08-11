@@ -30,31 +30,31 @@ import sys
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")  # headless
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import requests
 
-from volfoundry.data.fetcher import DeribitPublicClient, DERIBIT_REST_URL
-from volfoundry.data.persistence import write_snapshot
-from volfoundry.data.filters import clean_quotes
-from volfoundry.data.forwards import extract_forwards
-from volfoundry.iv.black_scholes import implied_volatility, OptionType
-from volfoundry.svi.calibration import calibrate_svi_slice, build_vega_weights
-from volfoundry.svi.parameterization import svi_implied_vol
-from volfoundry.surface.calibration import calibrate_ssvi_surface
-from volfoundry.surface.ssvi import ssvi_to_raw_svi
-from volfoundry.surface.plotting import (
-    plot_3d_surface,
-    plot_skew_term_structure,
-    plot_gk_diagnostics,
-)
 from volfoundry.arbitrage.checks import (
-    check_slice_arbitrage,
     calendar_monotonicity,
+    check_slice_arbitrage,
     find_calendar_violations,
 )
+from volfoundry.data.fetcher import DERIBIT_REST_URL, DeribitPublicClient
+from volfoundry.data.filters import clean_quotes
+from volfoundry.data.forwards import extract_forwards
+from volfoundry.data.persistence import write_snapshot
+from volfoundry.iv.black_scholes import OptionType, implied_volatility
+from volfoundry.surface.calibration import calibrate_ssvi_surface
+from volfoundry.surface.plotting import (
+    plot_3d_surface,
+    plot_gk_diagnostics,
+    plot_skew_term_structure,
+)
+from volfoundry.svi.calibration import build_vega_weights, calibrate_svi_slice
+from volfoundry.svi.parameterization import svi_implied_vol
 
 logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(message)s")
 
@@ -208,15 +208,21 @@ def calibrate_currency(currency: str):
     good_slices = []
     for s in slices:
         weights = build_vega_weights(
-            s["k"], s["T"], s["F"], s["r"],
+            s["k"],
+            s["T"],
+            s["F"],
+            s["r"],
             sigma_guess=float(np.median(s["iv"])),
             option_type_strs=s["otype"],
         )
         try:
             res = calibrate_svi_slice(s["k"], s["w"], s["T"], weights=weights)
         except Exception as exc:  # pragma: no cover - defensive on live data
-            print(f"  skipping {pd.Timestamp(s['expiry']).date()} slice "
-                  f"(SVI calibration failed: {exc})", flush=True)
+            print(
+                f"  skipping {pd.Timestamp(s['expiry']).date()} slice "
+                f"(SVI calibration failed: {exc})",
+                flush=True,
+            )
             continue
         s["svi"] = res
         s["weights"] = weights
@@ -281,8 +287,7 @@ def plot_svi_smiles(result, output_path: Path) -> Path:
     n = len(slices)
     ncols = min(3, n)
     nrows = int(np.ceil(n / ncols))
-    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows),
-                             squeeze=False)
+    fig, axes = plt.subplots(nrows, ncols, figsize=(5 * ncols, 4 * nrows), squeeze=False)
     axes = axes.flatten()
 
     for i, s in enumerate(slices):
@@ -291,18 +296,28 @@ def plot_svi_smiles(result, output_path: Path) -> Path:
         kk = np.linspace(k.min(), k.max(), 200)
         iv_fit = svi_implied_vol(kk, s["svi"].params, s["T"])
         is_call = s["otype"] == "C"
-        ax.scatter(k[~is_call], s["iv"][~is_call] * 100, s=22, color="crimson",
-                   label="market IV (put)", zorder=3)
-        ax.scatter(k[is_call], s["iv"][is_call] * 100, s=22, color="royalblue",
-                   label="market IV (call)", zorder=3)
-        ax.plot(kk, iv_fit * 100, color="black", linewidth=1.4,
-                label="fitted SVI")
+        ax.scatter(
+            k[~is_call],
+            s["iv"][~is_call] * 100,
+            s=22,
+            color="crimson",
+            label="market IV (put)",
+            zorder=3,
+        )
+        ax.scatter(
+            k[is_call],
+            s["iv"][is_call] * 100,
+            s=22,
+            color="royalblue",
+            label="market IV (call)",
+            zorder=3,
+        )
+        ax.plot(kk, iv_fit * 100, color="black", linewidth=1.4, label="fitted SVI")
         ax.axvline(0.0, color="gray", linestyle="--", linewidth=0.7)
         ax.set_xlabel("k = log(K/F)")
         ax.set_ylabel("implied vol (%)")
         ax.set_title(
-            f"{s['days']:.0f}d  F={s['F']:,.0f}  n={s['n']}  "
-            f"RMSE={s['rmse_vol']*100:.2f}vp"
+            f"{s['days']:.0f}d  F={s['F']:,.0f}  n={s['n']}  RMSE={s['rmse_vol'] * 100:.2f}vp"
         )
         ax.grid(True, alpha=0.3)
         ax.legend(fontsize=7, loc="best")
@@ -313,7 +328,8 @@ def plot_svi_smiles(result, output_path: Path) -> Path:
     fig.suptitle(
         f"{result['currency']} raw-SVI smiles — market IV vs fit "
         f"({result['snapshot'].timestamp:%Y-%m-%d %H:%M UTC})",
-        fontsize=13, y=1.01,
+        fontsize=13,
+        y=1.01,
     )
     fig.tight_layout()
     fig.savefig(output_path, dpi=130, bbox_inches="tight")
@@ -341,14 +357,18 @@ def print_summary(result) -> None:
     print(f"Smile pts used    : {total_quotes}")
     print(f"Snapshot saved to : {result['snapshot_path']}")
     print("-" * 78)
-    print(f"{'expiry':<12}{'days':>7}{'#pts':>6}{'forward F':>14}"
-          f"{'SVI RMSE(vp)':>14}{'butterfly':>11}")
+    print(
+        f"{'expiry':<12}{'days':>7}{'#pts':>6}{'forward F':>14}"
+        f"{'SVI RMSE(vp)':>14}{'butterfly':>11}"
+    )
     print("-" * 78)
     for s in slices:
         exp = pd.Timestamp(s["expiry"]).strftime("%d%b%y").upper()
         bf = "PASS" if s["arb"].butterfly_passed else "FAIL"
-        print(f"{exp:<12}{s['days']:>7.1f}{s['n']:>6}{s['F']:>14,.1f}"
-              f"{s['rmse_vol']*100:>14.3f}{bf:>11}")
+        print(
+            f"{exp:<12}{s['days']:>7.1f}{s['n']:>6}{s['F']:>14,.1f}"
+            f"{s['rmse_vol'] * 100:>14.3f}{bf:>11}"
+        )
     print("-" * 78)
     print("GLOBAL SSVI FIT")
     print(f"  success   : {ssvi.success}  ({ssvi.message})")
@@ -365,14 +385,11 @@ def print_summary(result) -> None:
     print(f"  Butterfly (raw SVI g(k)>=0): {n_bf_pass}/{n_bf} slices pass")
     for r in result["arb_results"]:
         if not r.butterfly_passed:
-            print(f"    VIOLATION {r.slice_id} (T={r.T:.4f}): "
-                  f"min g(k) = {r.butterfly_min_g:.3e}")
+            print(f"    VIOLATION {r.slice_id} (T={r.T:.4f}): min g(k) = {r.butterfly_min_g:.3e}")
     bl_states = [r.bl_passed for r in result["arb_results"] if r.bl_passed is not None]
     if bl_states:
-        print(f"  Breeden-Litzenberger density >=0: "
-              f"{sum(bl_states)}/{len(bl_states)} slices pass")
-    print(f"  Calendar monotonicity (raw SVI): "
-          f"{'PASS' if result['calendar_ok'] else 'FAIL'}")
+        print(f"  Breeden-Litzenberger density >=0: {sum(bl_states)}/{len(bl_states)} slices pass")
+    print(f"  Calendar monotonicity (raw SVI): {'PASS' if result['calendar_ok'] else 'FAIL'}")
     if result["calendar_viol"]:
         for T_i, T_j, k_v in result["calendar_viol"]:
             print(f"    VIOLATION T={T_i:.4f} -> T={T_j:.4f}: {len(k_v)} k-points")
@@ -392,8 +409,7 @@ def main() -> int:
             result = None
         if result is not None:
             break
-        print(f"  {currency}: too few usable quotes; trying fallback ...",
-              flush=True)
+        print(f"  {currency}: too few usable quotes; trying fallback ...", flush=True)
 
     if result is None:
         print("ERROR: could not build a surface from live data.", file=sys.stderr)
@@ -404,8 +420,7 @@ def main() -> int:
 
     # (a) 3D implied-vol surface
     p3d = REPORTS_DIR / "live_surface_3d.png"
-    plot_3d_surface(ssvi.params, T_values, k_min=-1.2, k_max=1.2,
-                    output_path=p3d)
+    plot_3d_surface(ssvi.params, T_values, k_min=-1.2, k_max=1.2, output_path=p3d)
     plt.close("all")
 
     # (b) skew / term-structure
@@ -415,8 +430,7 @@ def main() -> int:
 
     # (c) butterfly g(k) diagnostics per slice
     pgk = REPORTS_DIR / "live_butterfly_gk.png"
-    plot_gk_diagnostics(result["arb_results"], k_min=-1.5, k_max=1.5,
-                        output_path=pgk)
+    plot_gk_diagnostics(result["arb_results"], k_min=-1.5, k_max=1.5, output_path=pgk)
     plt.close("all")
 
     # (d) per-expiry SVI smiles: market IV vs fitted curve

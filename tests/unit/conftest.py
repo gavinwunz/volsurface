@@ -1,4 +1,5 @@
 """Auto-mark all tests in tests/unit/ as @pytest.mark.unit."""
+
 from __future__ import annotations
 
 import pytest

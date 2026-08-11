@@ -1,4 +1,5 @@
 """Auto-mark all tests in tests/integration/ as @pytest.mark.integration."""
+
 from __future__ import annotations
 
 import pytest

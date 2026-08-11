@@ -25,7 +25,6 @@ Properties:
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -106,9 +105,7 @@ def svi_total_variance(k: np.ndarray | float, params: SviParams) -> np.ndarray |
     return params.a + params.b * (params.rho * k_shifted + disc)
 
 
-def svi_implied_vol(
-    k: np.ndarray | float, params: SviParams, T: float
-) -> np.ndarray | float:
+def svi_implied_vol(k: np.ndarray | float, params: SviParams, T: float) -> np.ndarray | float:
     """Evaluate raw SVI implied volatility sigma_IV(k).
 
     Parameters

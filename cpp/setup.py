@@ -4,8 +4,6 @@ Usage:
     python cpp/setup.py build_ext --inplace
 """
 
-import os
-import sysconfig
 from pathlib import Path
 
 from pybind11.setup_helpers import Pybind11Extension, build_ext

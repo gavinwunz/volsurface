@@ -21,17 +21,16 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
 
 import numpy as np
 
-from volfoundry.tolerances import ARBITRAGE_TOL, EPSILON
 from volfoundry.svi.parameterization import (
     SviParams,
     svi_first_derivative,
     svi_second_derivative,
     svi_total_variance,
 )
+from volfoundry.tolerances import ARBITRAGE_TOL, EPSILON
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +39,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-def butterfly_g(
-    k: np.ndarray, params: SviParams, T: float
-) -> np.ndarray:
+def butterfly_g(k: np.ndarray, params: SviParams, T: float) -> np.ndarray:
     """Compute the butterfly no-arbitrage function g(k).
 
     g(k) = (1 - k * w' / (2w))^2 - (w'^2 / 4) * (1/w + 1/4) + w'' / 2
@@ -104,7 +101,7 @@ def butterfly_is_arbitrage_free(
 
 def find_butterfly_violations(
     k: np.ndarray, params: SviParams, T: float, tol: float = ARBITRAGE_TOL
-) -> Optional[Tuple[np.ndarray, np.ndarray]]:
+) -> tuple[np.ndarray, np.ndarray] | None:
     """Find k-regions where the butterfly condition is violated.
 
     Parameters
@@ -137,7 +134,7 @@ def find_butterfly_violations(
 
 def calendar_monotonicity(
     k: np.ndarray,
-    params_slices: List[Tuple[SviParams, float]],
+    params_slices: list[tuple[SviParams, float]],
     tol: float = ARBITRAGE_TOL,
 ) -> bool:
     """Check calendar monotonicity across expiry slices.
@@ -168,8 +165,8 @@ def calendar_monotonicity(
     sorted_slices = sorted(params_slices, key=lambda x: x[1])
 
     for i in range(len(sorted_slices) - 1):
-        params_i, T_i = sorted_slices[i]
-        params_j, T_j = sorted_slices[i + 1]
+        params_i, _T_i = sorted_slices[i]
+        params_j, _T_j = sorted_slices[i + 1]
 
         w_i = svi_total_variance(k, params_i)
         w_j = svi_total_variance(k, params_j)
@@ -182,9 +179,9 @@ def calendar_monotonicity(
 
 def find_calendar_violations(
     k: np.ndarray,
-    params_slices: List[Tuple[SviParams, float]],
+    params_slices: list[tuple[SviParams, float]],
     tol: float = ARBITRAGE_TOL,
-) -> List[Tuple[float, float, np.ndarray]]:
+) -> list[tuple[float, float, np.ndarray]]:
     """Find calendar arbitrage violations.
 
     Parameters
@@ -256,15 +253,19 @@ def breeden_litzenberger_density(
         Approximate risk-neutral density at each strike (interior points
         only — endpoints are NaN).
     """
-    from volfoundry.iv.black_scholes import black76_price, OptionType
+    from volfoundry.iv.black_scholes import OptionType, black76_price
 
     n = len(K)
     if n < 3:
         raise ValueError("Need at least 3 strikes for density estimation")
 
     # Compute call prices from implied vols
-    calls = np.array([black76_price(F, float(Ki), float(si), T, r, OptionType.CALL)
-                      for Ki, si in zip(K, sigma)])
+    calls = np.array(
+        [
+            black76_price(F, float(Ki), float(si), T, r, OptionType.CALL)
+            for Ki, si in zip(K, sigma, strict=False)
+        ]
+    )
 
     # Non-uniform three-point second derivative formula.
     # For a quadratic through (K[i-1], C[i-1]), (K[i], C[i]), (K[i+1], C[i+1]):
@@ -281,13 +282,7 @@ def breeden_litzenberger_density(
         h_sum = h0 + h1
 
         d2C_dK2 = (
-            2.0
-            * (
-                calls[i + 1] * h0
-                - calls[i] * h_sum
-                + calls[i - 1] * h1
-            )
-            / (h_sum * h1 * h0)
+            2.0 * (calls[i + 1] * h0 - calls[i] * h_sum + calls[i - 1] * h1) / (h_sum * h1 * h0)
         )
         q[i] = np.exp(r * T) * d2C_dK2
 
@@ -295,7 +290,11 @@ def breeden_litzenberger_density(
 
 
 def breeden_litzenberger_is_nonnegative(
-    K: np.ndarray, F: float, T: float, r: float, sigma: np.ndarray,
+    K: np.ndarray,
+    F: float,
+    T: float,
+    r: float,
+    sigma: np.ndarray,
     tol: float = ARBITRAGE_TOL,
 ) -> bool:
     """Check that the Breeden-Litzenberger density is non-negative.
@@ -343,23 +342,24 @@ class ArbitrageCheckResult:
     k_range : tuple
         (k_min, k_max) used for evaluation.
     """
+
     slice_id: str
     T: float
     butterfly_passed: bool
     butterfly_min_g: float
-    bl_passed: Optional[bool]
+    bl_passed: bool | None
     params: SviParams
-    k_range: Tuple[float, float]
+    k_range: tuple[float, float]
 
 
 def check_slice_arbitrage(
     slice_id: str,
     params: SviParams,
     T: float,
-    k: Optional[np.ndarray] = None,
-    K: Optional[np.ndarray] = None,
-    F: Optional[float] = None,
-    r: Optional[float] = None,
+    k: np.ndarray | None = None,
+    K: np.ndarray | None = None,
+    F: float | None = None,
+    r: float | None = None,
     n_k: int = 500,
     k_min: float = -5.0,
     k_max: float = 5.0,
@@ -399,13 +399,11 @@ def check_slice_arbitrage(
     min_g = float(np.min(g))
 
     # Breeden-Litzenberger
-    bl_passed: Optional[bool] = None
+    bl_passed: bool | None = None
     if F is not None and r is not None:
         sigma_iv = np.sqrt(np.maximum(svi_total_variance(k, params), 0.0) / T)
         K_arr = F * np.exp(k) if K is None else K
-        bl_passed = breeden_litzenberger_is_nonnegative(
-            K_arr, F, T, r, sigma_iv
-        )
+        bl_passed = breeden_litzenberger_is_nonnegative(K_arr, F, T, r, sigma_iv)
 
     return ArbitrageCheckResult(
         slice_id=slice_id,
@@ -440,19 +438,20 @@ class SliceValidationReport:
     rejected_slices : list
         IDs of slices that failed any check.
     """
-    slice_results: List[ArbitrageCheckResult] = field(default_factory=list)
-    calendar_passed: Optional[bool] = None
-    calendar_violations: List = field(default_factory=list)
+
+    slice_results: list[ArbitrageCheckResult] = field(default_factory=list)
+    calendar_passed: bool | None = None
+    calendar_violations: list = field(default_factory=list)
     all_passed: bool = True
-    rejected_slices: List[str] = field(default_factory=list)
+    rejected_slices: list[str] = field(default_factory=list)
 
 
 def validate_surface(
-    slices: List[Tuple[str, SviParams, float]],
-    K: Optional[np.ndarray] = None,
-    F: Optional[float] = None,
-    r: Optional[float] = None,
-    k_grid: Optional[np.ndarray] = None,
+    slices: list[tuple[str, SviParams, float]],
+    K: np.ndarray | None = None,
+    F: float | None = None,
+    r: float | None = None,
+    k_grid: np.ndarray | None = None,
     n_k: int = 500,
 ) -> SliceValidationReport:
     """Validate an entire surface of SVI slices for no-arbitrage.
@@ -505,9 +504,7 @@ def validate_surface(
             all_bl_ok = False
             if slice_id not in report.rejected_slices:
                 report.rejected_slices.append(slice_id)
-            logger.warning(
-                f"Slice {slice_id} (T={T:.4f}) REJECTED: BL density negative"
-            )
+            logger.warning(f"Slice {slice_id} (T={T:.4f}) REJECTED: BL density negative")
 
     # Calendar check
     if len(slices_sorted) >= 2:
@@ -529,8 +526,10 @@ def validate_surface(
     else:
         report.calendar_passed = None  # not applicable
 
-    report.all_passed = all_butterfly_ok and (all_bl_ok) and (
-        report.calendar_passed is None or report.calendar_passed
+    report.all_passed = (
+        all_butterfly_ok
+        and (all_bl_ok)
+        and (report.calendar_passed is None or report.calendar_passed)
     )
 
     return report

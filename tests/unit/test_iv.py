@@ -8,8 +8,6 @@ import numpy as np
 import pytest
 
 from volfoundry.iv.black_scholes import (
-    MAX_NR_ITERATIONS,
-    VEGA_FLOOR,
     OptionType,
     black76_price,
     black76_vega,
@@ -33,6 +31,7 @@ PUT = OptionType.PUT
 # ---------------------------------------------------------------------------
 # norm_cdf / norm_pdf
 # ---------------------------------------------------------------------------
+
 
 class TestNormCdf:
     def test_zero(self):
@@ -275,10 +274,12 @@ class TestComputeIVSurface:
         T = np.array([0.25, 0.25, 0.25])
         r = np.array([0.05, 0.05, 0.05])
         sigma_true = 0.25
-        prices = np.array([
-            black76_price(float(F[i]), float(K[i]), sigma_true, float(T[i]), float(r[i]), CALL)
-            for i in range(3)
-        ])
+        prices = np.array(
+            [
+                black76_price(float(F[i]), float(K[i]), sigma_true, float(T[i]), float(r[i]), CALL)
+                for i in range(3)
+            ]
+        )
         ivs = compute_iv_surface(F, K, T, r, prices, CALL)
         assert ivs.shape == (3,)
         for iv in ivs:
@@ -293,6 +294,7 @@ class TestComputeIVSurface:
 def _has_py_vollib() -> bool:
     try:
         import importlib.util
+
         return importlib.util.find_spec("py_vollib") is not None
     except Exception:
         return False
@@ -307,6 +309,7 @@ def test_benchmark_vs_pyvollib():
     same inputs to within 1e-8.
     """
     import importlib.util as _util
+
     if _util.find_spec("vollib") is not None:
         from vollib.black_scholes import black_scholes as bsm
         from vollib.black_scholes.implied_volatility import implied_volatility as pyv_iv
@@ -324,12 +327,12 @@ def test_benchmark_vs_pyvollib():
     # Equivalent to Black-76 with F = S * exp(rT)
     F = S * math.exp(r * T)
 
-    price_bs = bsm('c', S, K, T, r, sigma)
+    price_bs = bsm("c", S, K, T, r, sigma)
     price_ours = black76_price(F, K, sigma, T, r, CALL)
     assert abs(price_ours - price_bs) < 1e-12
 
     # Cross-check IV inversion: vollib on BS price should recover sigma
-    iv_pyv = pyv_iv(price_bs, S, K, T, r, 'c')
+    iv_pyv = pyv_iv(price_bs, S, K, T, r, "c")
     assert abs(iv_pyv - sigma) < 1e-8
 
     # Our IV on BS price (with correct F) should also recover sigma

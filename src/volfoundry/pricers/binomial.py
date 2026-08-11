@@ -41,8 +41,6 @@ approach." Journal of Financial Economics, 7(3), 229-263.
 from __future__ import annotations
 
 import math
-from enum import Enum
-from typing import Optional
 
 from volfoundry.iv.black_scholes import OptionType
 
@@ -111,7 +109,7 @@ def crr_price(
     # Terminal forward: F * u^j * d^(N-j)
     values = [0.0] * (N + 1)
     for j in range(N + 1):
-        F_terminal = F * (u ** j) * (d ** (N - j))
+        F_terminal = F * (u**j) * (d ** (N - j))
         if option_type == OptionType.CALL:
             values[j] = max(F_terminal - K, 0.0)
         else:
@@ -124,7 +122,7 @@ def crr_price(
         for j in range(i + 1):
             continuation = df_step * (p * values[j + 1] + (1.0 - p) * values[j])
             if american:
-                F_node = F * (u ** j) * (d ** (i - j))
+                F_node = F * (u**j) * (d ** (i - j))
                 if option_type == OptionType.CALL:
                     intrinsic = max(F_node - K, 0.0)
                 else:
@@ -193,9 +191,9 @@ def crr_greeks(
     # from expiry, which correspond to t=0, t=dt, t=2*dt.
 
     # Build terminal payoffs at t=T (step N)
-    tree_N = [0.0] * (N + 1)   # values at t=T
+    tree_N = [0.0] * (N + 1)  # values at t=T
     for j in range(N + 1):
-        F_j = F * (u ** j) * (d ** (N - j))
+        F_j = F * (u**j) * (d ** (N - j))
         if option_type == OptionType.CALL:
             tree_N[j] = max(F_j - K, 0.0)
         else:
@@ -229,7 +227,7 @@ def crr_greeks(
     s2 = [tree[0], tree[1], tree[2]]  # V(2,0), V(2,1), V(2,2)
 
     # Roll back one more step to t=dt
-    for j in range(2):  # step index goes from 1 down to 0? No — roll back step 1
+    for _j in range(2):  # step index goes from 1 down to 0? No — roll back step 1
         pass
     # Actually, we need to roll back from the t=2*dt state to get t=dt values.
     # tree currently holds values at t=2*dt for nodes 0..(N-1).

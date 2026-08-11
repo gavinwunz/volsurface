@@ -22,6 +22,7 @@ rest of the VolFoundry pipeline.
 
 from __future__ import annotations
 
+from volfoundry.pricers.binomial import crr_greeks, crr_price
 from volfoundry.pricers.black_scholes import (
     OptionType,
     black76_all_greeks,
@@ -37,7 +38,6 @@ from volfoundry.pricers.black_scholes import (
     parity_check_put,
     price_and_greeks_vectorized,
 )
-from volfoundry.pricers.binomial import crr_greeks, crr_price
 from volfoundry.pricers.monte_carlo import (
     MCResult,
     mc_price,
@@ -49,13 +49,18 @@ from volfoundry.pricers.monte_carlo import (
 try:
     from volfoundry.pricers._core import (  # noqa: F401
         black76_price as _cpp_black76_price,
+    )
+    from volfoundry.pricers._core import (  # noqa: F401
         black76_price_greeks_vectorized as _cpp_black76_price_greeks_vectorized,
     )
+
     _HAS_CPP = True
 except ImportError:
     _HAS_CPP = False
 
 __all__ = [
+    "_HAS_CPP",
+    "MCResult",
     "OptionType",
     "black76_all_greeks",
     "black76_delta",
@@ -64,15 +69,13 @@ __all__ = [
     "black76_rho",
     "black76_theta",
     "black76_vega",
+    "crr_greeks",
+    "crr_price",
+    "mc_price",
+    "mc_price_with_confidence",
     "norm_cdf",
     "norm_pdf",
     "parity_check_call",
     "parity_check_put",
     "price_and_greeks_vectorized",
-    "crr_greeks",
-    "crr_price",
-    "mc_price",
-    "mc_price_with_confidence",
-    "MCResult",
-    "_HAS_CPP",
 ]

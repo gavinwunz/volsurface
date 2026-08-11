@@ -19,15 +19,12 @@ import pytest
 # ---------------------------------------------------------------------------
 # Imports from new public API
 # ---------------------------------------------------------------------------
-
 from volfoundry import (
-    DeribitClient,
+    OptionChain,
     SurfaceBuilder,
     SurfaceFitResult,
     ValidationReport,
     VolatilitySurface,
-    OptionChain,
-    __version__,
 )
 from volfoundry.exceptions import (
     ArbitrageViolationError,
@@ -44,7 +41,6 @@ from volfoundry.exceptions import (
     VolFoundryError,
 )
 from volfoundry.surface.ssvi import SsviParams
-
 
 # ===========================================================================
 # VolatilitySurface
@@ -203,7 +199,7 @@ def _make_synthetic_option_chain(
     rng = np.random.default_rng(seed)
     # Use future dates: Sep 2026, Oct 2026, Dec 2026, Mar 2027
     days_from_now = [30, 60, 120, 240]
-    base_date = pd.Timestamp.now(tz="UTC") + pd.Timedelta(days=30)
+    pd.Timestamp.now(tz="UTC") + pd.Timedelta(days=30)
     rows = []
     for d_offset in days_from_now[:n_expiries]:
         T = d_offset / 365.25
@@ -220,8 +216,10 @@ def _make_synthetic_option_chain(
 
             # Approximate Black-76 mid price (r=0 for simplicity)
             import math as _m
+
             sigma_sqrt_T = iv * _m.sqrt(T)
             d1 = _m.log(F / strike) / sigma_sqrt_T + 0.5 * sigma_sqrt_T
+
             # norm_cdf via math.erf
             def _cdf(x):
                 return 0.5 * (1.0 + _m.erf(x / _m.sqrt(2)))
@@ -234,30 +232,34 @@ def _make_synthetic_option_chain(
             call_bid = call_mid * (1.0 - spread_pct * 0.5)
             call_ask = call_mid * (1.0 + spread_pct * 0.5)
 
-            rows.append({
-                "strike": strike,
-                "expiry": expiry_dt,
-                "option_type": "C",
-                "mid": call_mid,
-                "bid": call_bid,
-                "ask": call_ask,
-                "underlying_price": F + rng.normal(0, 50),
-            })
+            rows.append(
+                {
+                    "strike": strike,
+                    "expiry": expiry_dt,
+                    "option_type": "C",
+                    "mid": call_mid,
+                    "bid": call_bid,
+                    "ask": call_ask,
+                    "underlying_price": F + rng.normal(0, 50),
+                }
+            )
 
             # Put via put-call parity: P = C + K - F (r=0)
             put_mid = max(call_mid + strike - F, 0.001)  # approximate with r=0
             put_bid = put_mid * 0.995
             put_ask = put_mid * 1.005
 
-            rows.append({
-                "strike": strike,
-                "expiry": expiry_dt,
-                "option_type": "P",
-                "mid": put_mid,
-                "bid": put_bid,
-                "ask": put_ask,
-                "underlying_price": F + rng.normal(0, 50),
-            })
+            rows.append(
+                {
+                    "strike": strike,
+                    "expiry": expiry_dt,
+                    "option_type": "P",
+                    "mid": put_mid,
+                    "bid": put_bid,
+                    "ask": put_ask,
+                    "underlying_price": F + rng.normal(0, 50),
+                }
+            )
 
     return pd.DataFrame(rows)
 
@@ -402,9 +404,15 @@ class TestExceptionHierarchy:
 
     def test_all_exceptions_inherit_from_volfoundry_error(self):
         for cls in [
-            DataError, MarketDataError, QuoteValidationError, PersistenceError,
-            PricingError, ImpliedVolError,
-            CalibrationError, CalibrationConvergenceError, InvalidSurfaceError,
+            DataError,
+            MarketDataError,
+            QuoteValidationError,
+            PersistenceError,
+            PricingError,
+            ImpliedVolError,
+            CalibrationError,
+            CalibrationConvergenceError,
+            InvalidSurfaceError,
             ArbitrageViolationError,
             ConfigurationError,
         ]:

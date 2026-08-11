@@ -1,4 +1,5 @@
 """Auto-mark all tests in tests/regression/ as @pytest.mark.regression."""
+
 from __future__ import annotations
 
 import pytest

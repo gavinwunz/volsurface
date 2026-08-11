@@ -8,18 +8,10 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
 
-from hypothesis import assume, given, settings, strategies as st
-
-from volfoundry.svi.parameterization import (
-    SviParams,
-    svi_implied_vol,
-    svi_second_derivative,
-    svi_total_variance,
-)
 from volfoundry.arbitrage.checks import (
-    ArbitrageCheckResult,
-    SliceValidationReport,
     breeden_litzenberger_density,
     breeden_litzenberger_is_nonnegative,
     butterfly_g,
@@ -29,6 +21,12 @@ from volfoundry.arbitrage.checks import (
     find_butterfly_violations,
     find_calendar_violations,
     validate_surface,
+)
+from volfoundry.svi.parameterization import (
+    SviParams,
+    svi_implied_vol,
+    svi_second_derivative,
+    svi_total_variance,
 )
 
 
@@ -151,7 +149,10 @@ class TestBreedenLitzenberger:
     def test_raises_on_too_few_strikes(self):
         with pytest.raises(ValueError):
             breeden_litzenberger_density(
-                np.array([10000, 20000]), 50000, 0.25, 0.05,
+                np.array([10000, 20000]),
+                50000,
+                0.25,
+                0.05,
                 np.array([0.5, 0.5]),
             )
 
@@ -171,16 +172,20 @@ class TestCheckSliceArbitrage:
     def test_with_bl_check(self):
         p = make_params()
         result = check_slice_arbitrage(
-            "test", p, T=0.25, F=50000.0, r=0.05,
+            "test",
+            p,
+            T=0.25,
+            F=50000.0,
+            r=0.05,
         )
         assert result.butterfly_passed
         assert result.bl_passed is True
 
     def test_arbitrage_check_result_fields(self):
         p = make_params()
-        result = check_slice_arbitrage("BTC-100D", p, T=100/365)
+        result = check_slice_arbitrage("BTC-100D", p, T=100 / 365)
         assert result.slice_id == "BTC-100D"
-        assert result.T == pytest.approx(100/365)
+        assert pytest.approx(100 / 365) == result.T
         assert result.k_range[0] < result.k_range[1]
         assert result.params is p
 
@@ -289,15 +294,13 @@ class TestHypothesisButterfly:
         assume(abs(params.rho) < 1e-10)
         # Force m = 0 exactly — the symmetry only holds at m = 0 because
         # term1 = (1 - k w'/(2w))^2 contains an explicit k factor.
-        params_zero_m = SviParams(
-            a=params.a, b=params.b, rho=0.0, m=0.0, sigma=params.sigma
-        )
+        params_zero_m = SviParams(a=params.a, b=params.b, rho=0.0, m=0.0, sigma=params.sigma)
         n = 100
         ks = np.linspace(-2.0, 2.0, n)
         g_vals = butterfly_g(ks, params_zero_m, T=0.25)
         mid = n // 2
         left = g_vals[:mid]
-        right_rev = g_vals[-1:mid-1:-1]
+        right_rev = g_vals[-1 : mid - 1 : -1]
         assert len(left) == len(right_rev), (
             f"shape mismatch: left={left.shape}, right_rev={right_rev.shape}"
         )

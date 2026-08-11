@@ -5,6 +5,12 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from volfoundry.svi.calibration import (
+    _inner_lls,
+    _outer_objective,
+    build_vega_weights,
+    calibrate_svi_slice,
+)
 from volfoundry.svi.parameterization import (
     SviParams,
     clip_params_to_valid,
@@ -14,17 +20,10 @@ from volfoundry.svi.parameterization import (
     svi_second_derivative,
     svi_total_variance,
 )
-from volfoundry.svi.calibration import (
-    build_inverse_spread_weights,
-    build_vega_weights,
-    calibrate_svi_slice,
-    _inner_lls,
-    _outer_objective,
-)
 
 
 def make_valid_params(**overrides) -> SviParams:
-    defaults = dict(a=0.04, b=0.4, rho=-0.2, m=0.05, sigma=0.15)
+    defaults = {"a": 0.04, "b": 0.4, "rho": -0.2, "m": 0.05, "sigma": 0.15}
     defaults.update(overrides)
     return SviParams(**defaults)
 
@@ -220,10 +219,10 @@ class TestClipParamsToValid:
         # We cannot construct SviParams with negative values, so patch attributes
         p = make_valid_params()
         # Manually set invalid values on the dataclass (bypass validation)
-        object.__setattr__(p, 'a', -1.0)
-        object.__setattr__(p, 'b', -1.0)
-        object.__setattr__(p, 'rho', -10.0)
-        object.__setattr__(p, 'sigma', 0.0)
+        object.__setattr__(p, "a", -1.0)
+        object.__setattr__(p, "b", -1.0)
+        object.__setattr__(p, "rho", -10.0)
+        object.__setattr__(p, "sigma", 0.0)
         clipped = clip_params_to_valid(p)
         assert clipped.a >= 1e-12
         assert clipped.b >= 0.0
@@ -232,7 +231,7 @@ class TestClipParamsToValid:
 
     def test_clips_rho_upper(self):
         p = make_valid_params()
-        object.__setattr__(p, 'rho', 5.0)
+        object.__setattr__(p, "rho", 5.0)
         clipped = clip_params_to_valid(p)
         assert clipped.rho == 0.999
 

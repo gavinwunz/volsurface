@@ -18,15 +18,11 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
-from typing import Optional, Union
 
 import numpy as np
 import pandas as pd
 
-from volfoundry.tolerances import CALIBRATION_TOL, ARBITRAGE_TOL
 from volfoundry.arbitrage.checks import (
-    SliceValidationReport,
-    check_slice_arbitrage,
     validate_surface,
 )
 from volfoundry.data.fetcher import Snapshot
@@ -34,7 +30,6 @@ from volfoundry.data.filters import clean_quotes as _clean_quotes
 from volfoundry.data.forwards import extract_forwards
 from volfoundry.iv.black_scholes import (
     OptionType,
-    black76_price,
     implied_vol_brent,
 )
 from volfoundry.surface.calibration import (
@@ -46,13 +41,12 @@ from volfoundry.surface.result_types import (
     SurfaceFitResult,
     ValidationReport,
 )
-from volfoundry.surface.ssvi import SsviParams
 from volfoundry.surface.volatility_surface import VolatilitySurface
 from volfoundry.svi.calibration import (
     SviCalibrationResult,
-    build_vega_weights,
     calibrate_svi_slice,
 )
+from volfoundry.tolerances import ARBITRAGE_TOL, CALIBRATION_TOL
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +111,7 @@ class SurfaceBuilder:
         self.n_k = n_k
         self.butterfly_tol = butterfly_tol
         self.calendar_tol = calendar_tol
+        self._precomputed_forwards: dict | None = None
 
     # ------------------------------------------------------------------
     # Public entry points
@@ -124,9 +119,9 @@ class SurfaceBuilder:
 
     def fit(
         self,
-        data: Union[Snapshot, OptionChain, pd.DataFrame],
+        data: Snapshot | OptionChain | pd.DataFrame,
         validation: str = "report",
-        rho: Optional[float] = None,
+        rho: float | None = None,
         r: float = 0.0,
     ) -> SurfaceFitResult:
         """Fit a volatility surface to market data.
@@ -198,9 +193,7 @@ class SurfaceBuilder:
             cleaning_stats = {"raw": len(df), "retained": len(df)}
             self._precomputed_forwards = None
         else:
-            raise TypeError(
-                f"data must be Snapshot, OptionChain, or DataFrame, got {type(data)}"
-            )
+            raise TypeError(f"data must be Snapshot, OptionChain, or DataFrame, got {type(data)}")
 
         if df.empty:
             raise ValueError("No quotes available after cleaning")
@@ -217,16 +210,14 @@ class SurfaceBuilder:
             raise ValueError("Could not extract any forward prices from the data")
 
         # --- Prepare slices for calibration ----------------------------------
-        slices_data, slice_ids, expiry_times, T_list = self._prepare_slices(
-            df, forward_results, r
-        )
+        slices_data, slice_ids, _expiry_times, T_list = self._prepare_slices(df, forward_results, r)
 
         if len(slices_data) < 1:
             raise ValueError("No valid expiry slices for calibration")
 
         # --- Raw SVI per slice -----------------------------------------------
         raw_svi_results: list[SviCalibrationResult] = []
-        for (k, w_obs, T_i) in slices_data:
+        for k, w_obs, T_i in slices_data:
             try:
                 svi_result = calibrate_svi_slice(
                     k=k,
@@ -277,9 +268,7 @@ class SurfaceBuilder:
         # --- Determine status -------------------------------------------------
         if not ssvi_result.success:
             status = "did_not_converge"
-            validation_report.warnings.append(
-                f"SSVI optimizer: {ssvi_result.message}"
-            )
+            validation_report.warnings.append(f"SSVI optimizer: {ssvi_result.message}")
         elif validation_report.is_valid:
             status = "converged"
         else:
@@ -289,7 +278,7 @@ class SurfaceBuilder:
         per_expiry = []
         from volfoundry.arbitrage.checks import butterfly_g  # deferred
 
-        for i, (svi_r, sid) in enumerate(zip(raw_svi_results, slice_ids)):
+        for i, (svi_r, sid) in enumerate(zip(raw_svi_results, slice_ids, strict=False)):
             T_i = float(T_list[i])
             svi_status = "not_fitted"
             g_min = None
@@ -309,17 +298,19 @@ class SurfaceBuilder:
             elif not svi_r.outer_success:
                 svi_status = "did_not_converge"
 
-            per_expiry.append({
-                "slice_id": sid,
-                "T": T_i,
-                "svi_success": svi_r.outer_success,
-                "svi_status": svi_status,
-                "svi_rmse": svi_r.rmse,
-                "svi_r2": svi_r.r2,
-                "n_points": svi_r.n_points,
-                "g_min": g_min,
-                "k_eval_domain": k_eval_domain,
-            })
+            per_expiry.append(
+                {
+                    "slice_id": sid,
+                    "T": T_i,
+                    "svi_success": svi_r.outer_success,
+                    "svi_status": svi_status,
+                    "svi_rmse": svi_r.rmse,
+                    "svi_r2": svi_r.r2,
+                    "n_points": svi_r.n_points,
+                    "g_min": g_min,
+                    "k_eval_domain": k_eval_domain,
+                }
+            )
 
         # --- Global diagnostics -----------------------------------------------
         global_diag = {
@@ -366,7 +357,7 @@ class SurfaceBuilder:
         self,
         df: pd.DataFrame,
         validation: str = "report",
-        rho: Optional[float] = None,
+        rho: float | None = None,
         r: float = 0.0,
     ) -> SurfaceFitResult:
         """Fit a surface from a cleaned DataFrame (offline path).
@@ -395,16 +386,14 @@ class SurfaceBuilder:
     # Internals
     # ------------------------------------------------------------------
 
-    def _clean_from_raw(
-        self, df: pd.DataFrame
-    ) -> tuple[pd.DataFrame, dict[str, int]]:
+    def _clean_from_raw(self, df: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:
         """Apply quote filters and return (cleaned_df, cleaning_stats)."""
-        cleaned_df, cleaning_report = _clean_quotes(
-            df, min_days=self.min_expiry_days
-        )
-        stats = {**cleaning_report.removed_counts,
-                 "raw": cleaning_report.raw_count,
-                 "retained": cleaning_report.retained_count}
+        cleaned_df, cleaning_report = _clean_quotes(df, min_days=self.min_expiry_days)
+        stats = {
+            **cleaning_report.removed_counts,
+            "raw": cleaning_report.raw_count,
+            "retained": cleaning_report.retained_count,
+        }
         return cleaned_df, stats
 
     def _prepare_slices(
@@ -418,8 +407,7 @@ class SurfaceBuilder:
         slice_ids = []
         T_list = []
 
-        for expiry, fwd_result in sorted(forward_results.items(),
-                                          key=lambda x: x[0]):
+        for expiry, fwd_result in sorted(forward_results.items(), key=lambda x: x[0]):
             # Match on date only to avoid microsecond mismatch between
             # the expiry column and the forward-results key
             exp_date = pd.Timestamp(expiry).date()
@@ -478,14 +466,15 @@ class SurfaceBuilder:
         # Build SVI parameter slices for the existing validator
         svi_slices = []
         for i, (T_i, theta_i) in enumerate(
-            zip(ssvi_result.expiry_times, ssvi_result.theta_values)
+            zip(ssvi_result.expiry_times, ssvi_result.theta_values, strict=False)
         ):
             phi_i = ssvi_result.params.phi(float(theta_i))
             from volfoundry.surface.ssvi import ssvi_to_raw_svi
 
             raw_params = ssvi_to_raw_svi(float(theta_i), float(phi_i), ssvi_result.params.rho)
-            svi_slices.append((slice_ids[i] if i < len(slice_ids) else f"slice_{i}",
-                               raw_params, float(T_i)))
+            svi_slices.append(
+                (slice_ids[i] if i < len(slice_ids) else f"slice_{i}", raw_params, float(T_i))
+            )
 
         # Run the existing multi-slice validator
         arb_report = validate_surface(
@@ -497,16 +486,14 @@ class SurfaceBuilder:
         lee_ok = ssvi_result.params.satisfies_lee_bound()
         theta_positive = bool(np.all(ssvi_result.theta_values > 0))
         lam_domain = 0.0 <= ssvi_result.lamb <= 1.0
-        analytical = {
+        analytical: dict[str, bool | None] = {
             "rho_domain": -0.999 < ssvi_result.rho < 0.999,
             "theta_positive": theta_positive,
             "lambda_domain": lam_domain,
             "lee_bound": lee_ok,
         }
 
-        is_valid = all(
-            v for v in analytical.values() if v is not None
-        ) and arb_report.all_passed
+        is_valid = all(v for v in analytical.values() if v is not None) and arb_report.all_passed
 
         # Per-slice details from the arbitrage report, augmented with
         # SSVI analytical slice status.
@@ -541,26 +528,33 @@ class SurfaceBuilder:
             ]
         # Add analytical violations to rejection reasons
         if not analytical.get("theta_positive", True):
-            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
-                "theta not positive"
+            rejection_reasons["_analytical"] = [
+                *rejection_reasons.get("_analytical", []),
+                "theta not positive",
             ]
         if not analytical.get("lee_bound", True):
-            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
-                f"Lee bound violation (eta*(1+|rho|) = {ssvi_result.eta * (1.0 + abs(ssvi_result.rho)):.4f})"
+            rejection_reasons["_analytical"] = [
+                *rejection_reasons.get("_analytical", []),
+                f"Lee bound violation (eta*(1+|rho|) = {ssvi_result.eta * (1.0 + abs(ssvi_result.rho)):.4f})",
             ]
         if not analytical.get("rho_domain", True):
-            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
-                "rho outside (-1, 1)"
+            rejection_reasons["_analytical"] = [
+                *rejection_reasons.get("_analytical", []),
+                "rho outside (-1, 1)",
             ]
         if not analytical.get("lambda_domain", True):
-            rejection_reasons["_analytical"] = rejection_reasons.get("_analytical", []) + [
-                "lambda outside [0, 1]"
+            rejection_reasons["_analytical"] = [
+                *rejection_reasons.get("_analytical", []),
+                "lambda outside [0, 1]",
             ]
 
         return ValidationReport(
             is_valid=is_valid,
-            butterfly_passed=arb_report.slice_results
-            and all(sr.butterfly_passed for sr in arb_report.slice_results),
+            butterfly_passed=(
+                all(sr.butterfly_passed for sr in arb_report.slice_results)
+                if arb_report.slice_results
+                else None
+            ),
             calendar_passed=arb_report.calendar_passed,
             density_passed=(
                 all(sr.bl_passed for sr in arb_report.slice_results if sr.bl_passed is not None)

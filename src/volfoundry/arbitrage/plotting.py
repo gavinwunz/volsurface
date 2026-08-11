@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -13,7 +12,6 @@ from volfoundry.arbitrage.checks import (
     SliceValidationReport,
     butterfly_g,
 )
-from volfoundry.svi.parameterization import SviParams, svi_total_variance
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +20,10 @@ DEFAULT_REPORTS_DIR = Path("reports")
 
 
 def plot_butterfly_g(
-    results: List[ArbitrageCheckResult],
+    results: list[ArbitrageCheckResult],
     output_dir: str | Path = DEFAULT_REPORTS_DIR,
     prefix: str = "butterfly_g",
-) -> List[Path]:
+) -> list[Path]:
     """Plot the butterfly g(k) function for each slice.
 
     Saves one PNG per slice and returns the list of file paths.
@@ -46,6 +44,7 @@ def plot_butterfly_g(
         Paths to saved plots.
     """
     import matplotlib
+
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
 
@@ -54,7 +53,7 @@ def plot_butterfly_g(
 
     paths = []
 
-    for i, result in enumerate(results):
+    for _i, result in enumerate(results):
         k = np.linspace(result.k_range[0], result.k_range[1], 500)
         g = butterfly_g(k, result.params, result.T)
 
@@ -70,7 +69,9 @@ def plot_butterfly_g(
         ax.set_xlabel("Log-moneyness k = log(K/F)")
         ax.set_ylabel("g(k)")
         status = "PASS" if result.butterfly_passed else "REJECTED"
-        ax.set_title(f"{result.slice_id} (T={result.T:.4f}) — Butterfly {status}\nmin g(k) = {result.butterfly_min_g:.6e}")
+        ax.set_title(
+            f"{result.slice_id} (T={result.T:.4f}) — Butterfly {status}\nmin g(k) = {result.butterfly_min_g:.6e}"
+        )
         ax.legend(loc="upper right", fontsize=8)
         ax.grid(True, alpha=0.3)
 
@@ -121,14 +122,18 @@ def write_validation_report(
     for result in report.slice_results:
         lines.append("-" * 60)
         lines.append(f"Slice: {result.slice_id}  T={result.T:.6f}")
-        lines.append(f"  Butterfly (g(k) >= 0): {'PASS' if result.butterfly_passed else 'REJECTED'}")
+        lines.append(
+            f"  Butterfly (g(k) >= 0): {'PASS' if result.butterfly_passed else 'REJECTED'}"
+        )
         lines.append(f"  Min g(k):              {result.butterfly_min_g:.6e}")
         if result.bl_passed is not None:
             lines.append(f"  Breeden-Litzenberger:   {'PASS' if result.bl_passed else 'REJECTED'}")
         lines.append(f"  k range:               [{result.k_range[0]:.2f}, {result.k_range[1]:.2f}]")
-        lines.append(f"  SVI params:            a={result.params.a:.6f}, b={result.params.b:.6f}, "
-                     f"rho={result.params.rho:.4f}, m={result.params.m:.4f}, "
-                     f"sigma={result.params.sigma:.6f}")
+        lines.append(
+            f"  SVI params:            a={result.params.a:.6f}, b={result.params.b:.6f}, "
+            f"rho={result.params.rho:.4f}, m={result.params.m:.4f}, "
+            f"sigma={result.params.sigma:.6f}"
+        )
         left = result.params.left_slope
         right = result.params.right_slope
         lines.append(f"  Wing slopes:            left={left:.4f}, right={right:.4f}")

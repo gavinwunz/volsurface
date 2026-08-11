@@ -10,13 +10,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 import pandas as pd
-
-from volfoundry.tolerances import ARBITRAGE_TOL
-
 
 # ---------------------------------------------------------------------------
 # Market data containers
@@ -112,10 +109,10 @@ class ValidationReport:
     """
 
     is_valid: bool = False
-    butterfly_passed: Optional[bool] = None
-    calendar_passed: Optional[bool] = None
-    density_passed: Optional[bool] = None
-    analytical_conditions: dict[str, Optional[bool]] = field(default_factory=dict)
+    butterfly_passed: bool | None = None
+    calendar_passed: bool | None = None
+    density_passed: bool | None = None
+    analytical_conditions: dict[str, bool | None] = field(default_factory=dict)
     rejected_slices: list[str] = field(default_factory=list)
     rejection_reasons: dict[str, list[str]] = field(default_factory=dict)
     evaluation_domain: dict[str, Any] = field(default_factory=dict)
@@ -167,7 +164,7 @@ class SurfaceFitResult:
         from raw if a monotonicity repair was applied).
     """
 
-    surface: Optional[Any] = None  # VolatilitySurface — forward ref
+    surface: Any | None = None  # VolatilitySurface — forward ref
     validation: ValidationReport = field(default_factory=ValidationReport)
     calibration_status: str = "failed"
     optimizer_diagnostics: dict[str, Any] = field(default_factory=dict)
@@ -176,5 +173,5 @@ class SurfaceFitResult:
     global_diagnostics: dict[str, Any] = field(default_factory=dict)
     source_snapshot: dict[str, Any] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
-    theta_raw: Optional[np.ndarray] = None
-    theta_adjusted: Optional[np.ndarray] = None
+    theta_raw: np.ndarray | None = None
+    theta_adjusted: np.ndarray | None = None

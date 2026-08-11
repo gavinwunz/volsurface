@@ -11,7 +11,6 @@ activity happens through explicit method calls.
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 from volfoundry.data.fetcher import (
     DeribitPublicClient,
@@ -47,7 +46,7 @@ class DeribitClient:
     ) -> None:
         self._connect_timeout = connect_timeout
         self._read_timeout = read_timeout
-        self._client: Optional[DeribitPublicClient] = None
+        self._client: DeribitPublicClient | None = None
 
     def _get_client(self) -> DeribitPublicClient:
         """Lazily create the underlying client (reuses session)."""

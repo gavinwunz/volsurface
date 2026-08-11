@@ -5,6 +5,14 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from volfoundry.surface.calibration import (
+    SsviCalibrationResult,
+    _global_objective_wrapper,
+    _ssvi_global_objective,
+    calibrate_ssvi_surface,
+    extract_atm_variance,
+    extract_theta_grid,
+)
 from volfoundry.surface.ssvi import (
     SsviParams,
     ssvi_implied_vol,
@@ -13,15 +21,6 @@ from volfoundry.surface.ssvi import (
     ssvi_total_variance,
     ssvi_total_variance_surface,
 )
-from volfoundry.surface.calibration import (
-    SsviCalibrationResult,
-    calibrate_ssvi_surface,
-    extract_atm_variance,
-    extract_theta_grid,
-    _ssvi_global_objective,
-    _global_objective_wrapper,
-)
-
 
 # ===================================================================
 # Helper: generate synthetic SSVI data
@@ -30,7 +29,7 @@ from volfoundry.surface.calibration import (
 
 def _make_ssvi_params(**overrides) -> SsviParams:
     """Create valid SsviParams with defaults suitable for BTC-like surface."""
-    defaults = dict(rho=-0.3, eta=1.2, lamb=0.25)
+    defaults = {"rho": -0.3, "eta": 1.2, "lamb": 0.25}
     defaults.update(overrides)
     return SsviParams(**defaults)
 
@@ -53,7 +52,7 @@ def _generate_synthetic_slices(
     rng = np.random.RandomState(rng_seed)
     k_grid = np.linspace(k_min, k_max, n_k)
     slices = []
-    for theta, T in zip(theta_values, T_values):
+    for theta, T in zip(theta_values, T_values, strict=False):
         phi_val = params.phi(float(theta))
         w_true = ssvi_total_variance(k_grid, float(theta), float(phi_val), params.rho)
         w_obs = w_true + noise * rng.normal(0, 1, n_k)
@@ -289,8 +288,9 @@ class TestSsviTotalVarianceSurface:
         surface = ssvi_total_variance_surface(k_grid, p)
         for j in range(len(thetas) - 1):
             # Check that each slice is <= the next (calendar monotonicity)
-            assert np.all(surface[:, j] <= surface[:, j + 1] - 1e-12), \
+            assert np.all(surface[:, j] <= surface[:, j + 1] - 1e-12), (
                 f"Calendar violation at theta index {j}"
+            )
 
     def test_no_theta_grid_raises(self):
         p = _make_ssvi_params()
@@ -312,6 +312,7 @@ class TestSsviToRawSvi:
         raw = ssvi_to_raw_svi(theta, phi_val, p.rho)
 
         from volfoundry.svi.parameterization import svi_total_variance
+
         w_ssvi = ssvi_total_variance(0.0, theta, phi_val, p.rho)
         w_raw = svi_total_variance(0.0, raw)
         assert abs(w_ssvi - w_raw) < 1e-12
@@ -348,6 +349,7 @@ class TestSsviToRawSvi:
         raw = ssvi_to_raw_svi(theta, phi_val, rho)
 
         from volfoundry.svi.parameterization import svi_total_variance
+
         ks = np.linspace(-3.0, 3.0, 100)
         w_ssvi = ssvi_total_variance(ks, theta, phi_val, rho)
         w_raw = svi_total_variance(ks, raw)
@@ -436,12 +438,8 @@ class TestExtractAtmVariance:
 class TestExtractThetaGrid:
     def test_multiple_slices(self):
         slices = [
-            (np.array([-0.5, -0.1, 0.0, 0.2, 0.5]),
-             np.array([0.06, 0.05, 0.04, 0.05, 0.06]),
-             0.25),
-            (np.array([-0.5, 0.0, 0.5]),
-             np.array([0.12, 0.09, 0.12]),
-             0.5),
+            (np.array([-0.5, -0.1, 0.0, 0.2, 0.5]), np.array([0.06, 0.05, 0.04, 0.05, 0.06]), 0.25),
+            (np.array([-0.5, 0.0, 0.5]), np.array([0.12, 0.09, 0.12]), 0.5),
         ]
         theta_vec = extract_theta_grid(slices)
         assert len(theta_vec) == 2
@@ -463,8 +461,7 @@ class TestSsviGlobalObjective:
         k_all = [s[0] for s in slices]
         w_all = [s[1] for s in slices]
         weights_all = [np.ones_like(k) for k in k_all]
-        obj = _ssvi_global_objective(thetas, k_all, w_all, weights_all,
-                                      p.rho, p.eta, p.lamb)
+        obj = _ssvi_global_objective(thetas, k_all, w_all, weights_all, p.rho, p.eta, p.lamb)
         assert obj < 1e-20
 
     def test_positive_at_wrong_params(self):
@@ -476,8 +473,7 @@ class TestSsviGlobalObjective:
         w_all = [s[1] for s in slices]
         weights_all = [np.ones_like(k) for k in k_all]
         # Wrong eta
-        obj = _ssvi_global_objective(thetas, k_all, w_all, weights_all,
-                                      p.rho, 0.5, p.lamb)
+        obj = _ssvi_global_objective(thetas, k_all, w_all, weights_all, p.rho, 0.5, p.lamb)
         assert obj > 0
 
     def test_invalid_eta_penalized(self):
@@ -486,8 +482,7 @@ class TestSsviGlobalObjective:
         k_all = [np.linspace(-1, 1, 10)]
         w_all = [np.array([0.05] * 10)]
         weights_all = [np.ones(10)]
-        obj = _ssvi_global_objective(thetas, k_all, w_all, weights_all,
-                                      p.rho, 0.0, 0.5)
+        obj = _ssvi_global_objective(thetas, k_all, w_all, weights_all, p.rho, 0.0, 0.5)
         # With eta=0, phi(theta) = eta/theta^lambda = 0, which is non-positive.
         # The function now returns NON_POSITIVE_PHI_PENALTY (1e20).
         assert obj >= 1e20
@@ -520,8 +515,9 @@ class TestCalibrateSsviSurface:
         slices = _generate_synthetic_slices(p, thetas, Ts, n_k=40)
 
         result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts),
-            rho=-0.3  # fix rho to true value
+            slices,
+            expiration_times=list(Ts),
+            rho=-0.3,  # fix rho to true value
         )
         assert result.success
         assert result.r2 > 0.999
@@ -535,10 +531,7 @@ class TestCalibrateSsviSurface:
         Ts = np.array([0.1, 0.3, 0.75])
         slices = _generate_synthetic_slices(p, thetas, Ts, n_k=50, noise=0.003)
 
-        result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts),
-            rho=-0.4
-        )
+        result = calibrate_ssvi_surface(slices, expiration_times=list(Ts), rho=-0.4)
         assert result.success
         assert result.r2 > 0.8
         assert result.eta > 0
@@ -552,9 +545,7 @@ class TestCalibrateSsviSurface:
         Ts = np.array([0.1, 0.25, 0.5, 1.0])
         slices = _generate_synthetic_slices(p, thetas, Ts, n_k=40, noise=0.001)
 
-        result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts)
-        )
+        result = calibrate_ssvi_surface(slices, expiration_times=list(Ts))
         assert result.success
         assert abs(result.rho) < 1.0
         assert result.eta > 0
@@ -568,9 +559,7 @@ class TestCalibrateSsviSurface:
         Ts = np.array([0.25])
         slices = _generate_synthetic_slices(p, thetas, Ts, n_k=40)
 
-        result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts), rho=-0.3
-        )
+        result = calibrate_ssvi_surface(slices, expiration_times=list(Ts), rho=-0.3)
         assert result.success
         assert result.calendar_violations == 0
 
@@ -580,9 +569,7 @@ class TestCalibrateSsviSurface:
         Ts = np.array([0.25, 0.5])
         slices = _generate_synthetic_slices(p, thetas, Ts, n_k=30)
 
-        result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts), rho=-0.3
-        )
+        result = calibrate_ssvi_surface(slices, expiration_times=list(Ts), rho=-0.3)
         assert isinstance(result, SsviCalibrationResult)
         assert len(result.theta_values) == 2
         assert len(result.expiry_times) == 2
@@ -597,9 +584,7 @@ class TestCalibrateSsviSurface:
         Ts = np.array([0.2, 0.5, 0.8])
         slices = _generate_synthetic_slices(p, thetas, Ts, n_k=40, noise=0.001)
 
-        result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts), rho=-0.3
-        )
+        result = calibrate_ssvi_surface(slices, expiration_times=list(Ts), rho=-0.3)
         for rmse in result.per_slice_rmse:
             assert rmse >= 0
 
@@ -615,8 +600,7 @@ class TestCalibrateSsviSurface:
         weights_all = [np.ones(len(s[0])) * 2.0 for s in slices]
 
         result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts), rho=-0.3,
-            weights_all=weights_all
+            slices, expiration_times=list(Ts), rho=-0.3, weights_all=weights_all
         )
         assert result.success
 
@@ -627,8 +611,6 @@ class TestCalibrateSsviSurface:
         Ts = np.array([0.1, 0.3, 0.6])
         slices = _generate_synthetic_slices(p, thetas, Ts, n_k=40)
 
-        result = calibrate_ssvi_surface(
-            slices, expiration_times=list(Ts), rho=-0.2
-        )
+        result = calibrate_ssvi_surface(slices, expiration_times=list(Ts), rho=-0.2)
         assert result.success
         assert abs(result.lamb - 0.0) < 0.1 or result.r2 > 0.95

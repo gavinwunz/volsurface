@@ -1,4 +1,5 @@
 """Auto-mark all tests in tests/property/ as @pytest.mark.property (and slow)."""
+
 from __future__ import annotations
 
 import pytest

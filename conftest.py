@@ -1,4 +1,5 @@
 """Pytest configuration — shared fixtures and marker registration for VolFoundry."""
+
 from __future__ import annotations
 
 import pytest

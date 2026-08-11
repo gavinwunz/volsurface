@@ -16,7 +16,6 @@ import pytest
 
 from volfoundry.surface.builder import SurfaceBuilder
 
-
 _HERE = pathlib.Path(__file__).parent
 _FIXTURE_DIR = _HERE / "test_data"
 _FIXTURE_FILE = _FIXTURE_DIR / "golden_calibration_fixture.parquet"
@@ -54,17 +53,13 @@ class TestGoldenCalibration:
         result = SurfaceBuilder().fit(quote_df.copy(), validation="report")
         fitted = result.global_diagnostics["lambda"]
         target = expected["golden_lam"]
-        assert abs(fitted - target) < 1e-4, (
-            f"lam {fitted:.6f} != golden {target:.6f}"
-        )
+        assert abs(fitted - target) < 1e-4, f"lam {fitted:.6f} != golden {target:.6f}"
 
     def test_rho_matches_golden(self, expected, quote_df):
         result = SurfaceBuilder().fit(quote_df.copy(), validation="report")
         fitted = result.global_diagnostics["rho"]
         target = expected["golden_rho"]
-        assert abs(fitted - target) < 3e-4, (
-            f"rho {fitted:.6f} != golden {target:.6f}"
-        )
+        assert abs(fitted - target) < 3e-4, f"rho {fitted:.6f} != golden {target:.6f}"
 
     def test_calibration_result_is_valid(self, quote_df):
         result = SurfaceBuilder().fit(quote_df.copy(), validation="report")
@@ -81,9 +76,7 @@ class TestGoldenCalibration:
         for k, tol in [("eta", 2e-5), ("lambda", 2e-5), ("rho", 2e-5)]:
             v1 = r1.global_diagnostics[k]
             v2 = r2.global_diagnostics[k]
-            assert v1 == pytest.approx(v2, rel=tol), (
-                f"{k} not reproducible: {v1} vs {v2}"
-            )
+            assert v1 == pytest.approx(v2, rel=tol), f"{k} not reproducible: {v1} vs {v2}"
 
 
 def test_regression_fixtures_exist():
@@ -101,16 +94,18 @@ class TestWheelSmokeInstall:
 
     def test_package_imports(self):
         import volfoundry
+
         assert volfoundry.__version__ == "0.1.0"
 
     def test_core_api_available(self):
         from volfoundry import (
             DeribitClient,
             SurfaceBuilder,
-            VolatilitySurface,
-            ValidationReport,
             SurfaceFitResult,
+            ValidationReport,
+            VolatilitySurface,
         )
+
         assert DeribitClient is not None
         assert SurfaceBuilder is not None
         assert VolatilitySurface is not None
@@ -118,7 +113,12 @@ class TestWheelSmokeInstall:
         assert SurfaceFitResult is not None
 
     def test_minimal_pricing(self):
-        from volfoundry.iv.black_scholes import black76_price, implied_vol_nr, implied_volatility, OptionType
+        from volfoundry.iv.black_scholes import (
+            OptionType,
+            black76_price,
+            implied_vol_nr,
+        )
+
         F, K, sigma_d, T, r = 100.0, 100.0, 0.30, 0.50, 0.0
         price = black76_price(F, K, sigma_d, T, r, OptionType.CALL)
         # implied_vol_nr is the direct NR solver (decimal sigma)

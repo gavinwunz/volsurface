@@ -6,23 +6,24 @@ import tempfile
 from pathlib import Path
 
 import matplotlib
+
 matplotlib.use("Agg")
 import numpy as np
 import pytest
 
-from volfoundry.surface.ssvi import SsviParams
-from volfoundry.surface.plotting import (
-    plot_3d_surface,
-    plot_skew_term_structure,
-    plot_gk_diagnostics,
-    plot_iv_smile_cross_section,
-    write_surface_report,
-)
 from volfoundry.arbitrage.checks import (
     ArbitrageCheckResult,
     check_slice_arbitrage,
 )
-from volfoundry.svi.parameterization import SviParams as SviP, svi_total_variance
+from volfoundry.surface.plotting import (
+    plot_3d_surface,
+    plot_gk_diagnostics,
+    plot_iv_smile_cross_section,
+    plot_skew_term_structure,
+    write_surface_report,
+)
+from volfoundry.surface.ssvi import SsviParams
+from volfoundry.svi.parameterization import SviParams as SviP
 
 
 @pytest.fixture
@@ -83,19 +84,17 @@ class TestPlot3dSurface:
         assert len(fig.axes) >= 1  # includes colorbar axis
 
     def test_custom_k_range(self, valid_ssvi_params, T_values):
-        fig = plot_3d_surface(valid_ssvi_params, T_values,
-                              k_min=-2.0, k_max=2.0, n_k=50)
+        fig = plot_3d_surface(valid_ssvi_params, T_values, k_min=-2.0, k_max=2.0, n_k=50)
         assert fig is not None
 
     def test_custom_view_angles(self, valid_ssvi_params, T_values):
-        fig = plot_3d_surface(valid_ssvi_params, T_values,
-                              azimuth=30.0, elevation=60.0)
+        fig = plot_3d_surface(valid_ssvi_params, T_values, azimuth=30.0, elevation=60.0)
         assert fig is not None
 
     def test_save_to_file(self, valid_ssvi_params, T_values):
         with tempfile.TemporaryDirectory() as tmpdir:
             out = Path(tmpdir) / "surface_3d.png"
-            fig = plot_3d_surface(valid_ssvi_params, T_values, output_path=out)
+            plot_3d_surface(valid_ssvi_params, T_values, output_path=out)
             assert out.exists()
             assert out.stat().st_size > 0
 
@@ -122,7 +121,7 @@ class TestPlotSkewTermStructure:
     def test_save_to_file(self, valid_ssvi_params, T_values):
         with tempfile.TemporaryDirectory() as tmpdir:
             out = Path(tmpdir) / "skew.png"
-            fig = plot_skew_term_structure(valid_ssvi_params, T_values, output_path=out)
+            plot_skew_term_structure(valid_ssvi_params, T_values, output_path=out)
             assert out.exists()
             assert out.stat().st_size > 0
 
@@ -171,7 +170,7 @@ class TestPlotGkDiagnostics:
     def test_save_to_file(self, sample_arb_results):
         with tempfile.TemporaryDirectory() as tmpdir:
             out = Path(tmpdir) / "gk_diag.png"
-            fig = plot_gk_diagnostics(sample_arb_results, output_path=out)
+            plot_gk_diagnostics(sample_arb_results, output_path=out)
             assert out.exists()
             assert out.stat().st_size > 0
 
@@ -184,14 +183,16 @@ class TestPlotGkDiagnostics:
         """Test with 7 slices to verify multi-row grid layout."""
         results = []
         for i in range(7):
-            p = SviP(a=0.03 + 0.01 * i, b=0.3, rho=-0.2 + 0.05 * i,
-                     m=0.0, sigma=0.1 + 0.02 * i)
+            p = SviP(a=0.03 + 0.01 * i, b=0.3, rho=-0.2 + 0.05 * i, m=0.0, sigma=0.1 + 0.02 * i)
             results.append(
                 ArbitrageCheckResult(
-                    slice_id=f"MANY-{i}", T=0.1 * (i + 1),
+                    slice_id=f"MANY-{i}",
+                    T=0.1 * (i + 1),
                     butterfly_passed=(i != 3),  # one failure
                     butterfly_min_g=-0.01 if i == 3 else 0.002,
-                    bl_passed=None, params=p, k_range=(-3.0, 3.0),
+                    bl_passed=None,
+                    params=p,
+                    k_range=(-3.0, 3.0),
                 )
             )
         fig = plot_gk_diagnostics(results, k_min=-3.0, k_max=3.0, n_k=150)
@@ -209,8 +210,9 @@ class TestPlotIvSmileCrossSection:
         assert fig is not None
 
     def test_custom_k_range(self, valid_ssvi_params, T_values):
-        fig = plot_iv_smile_cross_section(valid_ssvi_params, T_values,
-                                          k_min=-1.0, k_max=1.0, n_k=100)
+        fig = plot_iv_smile_cross_section(
+            valid_ssvi_params, T_values, k_min=-1.0, k_max=1.0, n_k=100
+        )
         assert fig is not None
 
     def test_save_to_file(self, valid_ssvi_params, T_values):

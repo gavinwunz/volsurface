@@ -40,14 +40,11 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from enum import Enum
-from typing import Optional, Tuple
 
 import numpy as np
 
 from volfoundry.iv.black_scholes import OptionType, black76_price, norm_cdf
 from volfoundry.tolerances import R2_FLOOR
-
 
 # ---------------------------------------------------------------------------
 # Structured Monte Carlo result
@@ -90,7 +87,7 @@ class MCResult:
     ci_lower: float
     ci_upper: float
     n_paths: int
-    seed: Optional[int]
+    seed: int | None
     control_variate: bool
 
 
@@ -128,7 +125,7 @@ def mc_price(
     r: float,
     option_type: OptionType = OptionType.CALL,
     n_paths: int = 100_000,
-    seed: Optional[int] = None,
+    seed: int | None = None,
     use_control_variate: bool = True,
 ) -> MCResult:
     """Price a European option via Monte Carlo with variance reduction.
@@ -169,8 +166,14 @@ def mc_price(
         else:
             p = float(df * max(K - F, 0.0))
         return MCResult(
-            price=p, std_error=0.0, price_raw=p, bs_control_price=p,
-            ci_lower=p, ci_upper=p, n_paths=n_paths, seed=seed,
+            price=p,
+            std_error=0.0,
+            price_raw=p,
+            bs_control_price=p,
+            ci_lower=p,
+            ci_upper=p,
+            n_paths=n_paths,
+            seed=seed,
             control_variate=use_control_variate,
         )
 
@@ -200,11 +203,15 @@ def mc_price(
 
     if not use_control_variate:
         return MCResult(
-            price=price_raw, std_error=std_raw, price_raw=price_raw,
+            price=price_raw,
+            std_error=std_raw,
+            price_raw=price_raw,
             bs_control_price=bs_control,
             ci_lower=price_raw - 1.96 * std_raw,
             ci_upper=price_raw + 1.96 * std_raw,
-            n_paths=n_paths, seed=seed, control_variate=False,
+            n_paths=n_paths,
+            seed=seed,
+            control_variate=False,
         )
 
     # ------------------------------------------------------------------
@@ -235,10 +242,7 @@ def mc_price(
 
     # Compute the discounted Black-76 delta for the control variate
     d1 = math.log(F / K) / (sigma * math.sqrt(T)) + 0.5 * sigma * math.sqrt(T)
-    if option_type == OptionType.CALL:
-        delta_bs = df * norm_cdf(d1)
-    else:
-        delta_bs = df * (norm_cdf(d1) - 1.0)
+    delta_bs = df * norm_cdf(d1) if option_type == OptionType.CALL else df * (norm_cdf(d1) - 1.0)
 
     # Delta-hedged portfolio values
     hedged = discounted - delta_bs * (F_T - F)
@@ -262,10 +266,15 @@ def mc_price(
     ci_half = 1.96 * std_cv
 
     return MCResult(
-        price=price_cv, std_error=std_cv, price_raw=price_raw,
+        price=price_cv,
+        std_error=std_cv,
+        price_raw=price_raw,
         bs_control_price=bs_control,
-        ci_lower=price_cv - ci_half, ci_upper=price_cv + ci_half,
-        n_paths=n_paths, seed=seed, control_variate=True,
+        ci_lower=price_cv - ci_half,
+        ci_upper=price_cv + ci_half,
+        n_paths=n_paths,
+        seed=seed,
+        control_variate=True,
     )
 
 
@@ -277,7 +286,7 @@ def mc_price_with_confidence(
     r: float,
     option_type: OptionType = OptionType.CALL,
     n_paths: int = 1_000_000,
-    seed: Optional[int] = None,
+    seed: int | None = None,
 ) -> MCResult:
     """Higher-precision MC with 95% confidence interval.
 

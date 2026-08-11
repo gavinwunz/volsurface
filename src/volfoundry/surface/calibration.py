@@ -46,18 +46,16 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from typing import Callable, Optional, Tuple
 
 import numpy as np
 from scipy.optimize import minimize
 
-from volfoundry.tolerances import CALIBRATION_TOL, SIGMA_FLOOR, ARBITRAGE_TOL, R2_FLOOR
-from volfoundry.svi.calibration import SviCalibrationResult
-from volfoundry.svi.parameterization import SviParams
 from volfoundry.surface.ssvi import (
     SsviParams,
     ssvi_total_variance,
 )
+from volfoundry.svi.calibration import SviCalibrationResult
+from volfoundry.tolerances import ARBITRAGE_TOL, CALIBRATION_TOL, R2_FLOOR, SIGMA_FLOOR
 
 logger = logging.getLogger(__name__)
 
@@ -188,12 +186,12 @@ def extract_atm_variance(
     elif method == "quadratic" and len(k) >= 3:
         # Fit a quadratic through the 3 points nearest k=0
         idx_center = np.argmin(np.abs(k_sorted))
-        lo = max(0, idx_center - 1)
-        hi = min(len(k_sorted) - 1, idx_center + 1)
+        lo = int(max(0, int(idx_center) - 1))
+        hi = int(min(len(k_sorted) - 1, int(idx_center) + 1))
         if hi - lo < 2:
-            lo = max(0, hi - 2)
-        ks = k_sorted[lo:hi+1]
-        ws = w_sorted[lo:hi+1]
+            lo = int(max(0, hi - 2))
+        ks = k_sorted[lo : hi + 1]
+        ws = w_sorted[lo : hi + 1]
         coeffs = np.polyfit(ks, ws, 2)
         # Evaluate at k=0
         return float(np.polyval(coeffs, 0.0))
@@ -222,7 +220,7 @@ def extract_theta_grid(
         ATM total variances for each slice (same order as input).
     """
     theta_vals = []
-    for k, w_obs, T in slices_data:
+    for k, w_obs, _T in slices_data:
         theta_vals.append(extract_atm_variance(k, w_obs, method=method))
     return np.array(theta_vals)
 
@@ -272,24 +270,24 @@ def _ssvi_global_objective(
     if lee_value > 2.0:
         total_obj += LEE_BOUND_VIOLATION_PENALTY * (lee_value - 2.0) ** 2
 
-    for i, (k, w_obs, wts) in enumerate(zip(k_all, w_all, weights_all)):
+    for i, (k, w_obs, wts) in enumerate(zip(k_all, w_all, weights_all, strict=False)):
         theta_i = float(theta_vec[i])
         if theta_i <= 0:
             return NON_POSITIVE_PHI_PENALTY
-        phi_i = float(eta / (theta_i ** lamb))
+        phi_i = float(eta / (theta_i**lamb))
 
         if phi_i <= 0 or not np.isfinite(phi_i):
             return NON_POSITIVE_PHI_PENALTY
 
         w_fit = ssvi_total_variance(k, theta_i, phi_i, rho)
         residuals = np.sqrt(wts) * (w_obs - w_fit)
-        total_obj += float(np.sum(residuals ** 2))
+        total_obj += float(np.sum(residuals**2))
         n_total += len(k)
 
     # --- Calendar arbitrage penalty --------------------------------------
     # Check on a coarse stress grid (not every slice pair, just neighbouring
     # slices ordered by maturity).  A large penalty per violating point.
-    _T = np.array([data[2] for data in zip(k_all, w_all, weights_all)])
+    _T = np.array([data[2] for data in zip(k_all, w_all, weights_all, strict=False)])
     # Need T_all for calendar check — extract from the caller's data.
     # We'll handle calendar check in the wrapper instead.
 
@@ -315,8 +313,7 @@ def _global_objective_wrapper(
     eta, lamb = float(x[0]), float(x[1])
     if eta <= 0 or lamb < 0 or lamb > 1:
         return 1e20
-    obj = _ssvi_global_objective(theta_vec, k_all, w_all, weights_all,
-                                  rho, eta, lamb)
+    obj = _ssvi_global_objective(theta_vec, k_all, w_all, weights_all, rho, eta, lamb)
 
     # --- Calendar arbitrage penalty (added here so we have T_all) --------
     cal_penalty = _calendar_penalty(theta_vec, eta, lamb, rho, T_all)
@@ -352,16 +349,16 @@ def _calendar_penalty(
     penalty = 0.0
 
     for i in range(n_slices - 1):
-        Ti = float(sorted_T[i])
-        Tj = float(sorted_T[i + 1])
+        float(sorted_T[i])
+        float(sorted_T[i + 1])
         theta_i = float(sorted_theta[i])
         theta_j = float(sorted_theta[i + 1])
 
         if theta_i <= 0 or theta_j <= 0:
             continue
 
-        phi_i = float(eta / (theta_i ** lamb))
-        phi_j = float(eta / (theta_j ** lamb))
+        phi_i = float(eta / (theta_i**lamb))
+        phi_j = float(eta / (theta_j**lamb))
 
         if phi_i <= 0 or phi_j <= 0:
             continue
@@ -369,11 +366,13 @@ def _calendar_penalty(
         w_i = ssvi_total_variance(k_check, theta_i, phi_i, rho)
         w_j = ssvi_total_variance(k_check, theta_j, phi_j, rho)
 
-        viol_mask = w_j < w_i
-        n_viol = int(np.sum(viol_mask))
+        viol_mask_arr = np.asarray(w_j) < np.asarray(w_i)
+        n_viol = int(np.sum(viol_mask_arr))
         if n_viol > 0:
             # Penalty proportional to the magnitude of the worst violation
-            max_viol = float(np.max(w_i[viol_mask] - w_j[viol_mask]))
+            w_i_arr = np.asarray(w_i)
+            w_j_arr = np.asarray(w_j)
+            max_viol = float(np.max(w_i_arr[viol_mask_arr] - w_j_arr[viol_mask_arr]))
             penalty += CALENDAR_ARBITRAGE_PENALTY_PER_POINT * n_viol * (1.0 + max_viol)
 
     return penalty
@@ -382,10 +381,10 @@ def _calendar_penalty(
 def calibrate_ssvi_surface(
     slices_data: list[tuple[np.ndarray, np.ndarray, float]],
     expiration_times: list[float],
-    weights_all: Optional[list[np.ndarray]] = None,
-    rho: Optional[float] = None,
-    eta_init: Optional[float] = None,
-    lamb_init: Optional[float] = None,
+    weights_all: list[np.ndarray] | None = None,
+    rho: float | None = None,
+    eta_init: float | None = None,
+    lamb_init: float | None = None,
     eta_bounds: tuple[float, float] = DEFAULT_ETA_BOUNDS,
     lamb_bounds: tuple[float, float] = DEFAULT_LAMBDA_BOUNDS,
     rho_bounds: tuple[float, float] = DEFAULT_RHO_BOUNDS,
@@ -484,8 +483,7 @@ def calibrate_ssvi_surface(
             eta, lamb, rho = float(x[0]), float(x[1]), float(x[2])
             if eta <= 0 or lamb < 0 or lamb > 1 or rho <= -0.999 or rho >= 0.999:
                 return 1e20
-            obj = _ssvi_global_objective(theta_vec, k_all, w_all, weights_all,
-                                          rho, eta, lamb)
+            obj = _ssvi_global_objective(theta_vec, k_all, w_all, weights_all, rho, eta, lamb)
             cal_penalty = _calendar_penalty(theta_vec, eta, lamb, rho, T_all)
             return obj + cal_penalty
 
@@ -509,36 +507,35 @@ def calibrate_ssvi_surface(
     # Validate the result against analytical constraints
     # ------------------------------------------------------------------
     lee_bound_ok = (eta_opt * (1.0 + abs(rho_opt))) <= 2.0 + CALIBRATION_TOL
-    if not lee_bound_ok:
-        if success:
-            logger.warning(
-                "SSVI fit converged but violates Lee bound: "
-                "eta*(1+|rho|) = %.4f > 2.0", eta_opt * (1.0 + abs(rho_opt))
-            )
-            # Mark as invalid — surface is not arbitrage-free
-            success = False
-            if not message:
-                message = "Lee bound violation"
+    if not lee_bound_ok and success:
+        logger.warning(
+            "SSVI fit converged but violates Lee bound: eta*(1+|rho|) = %.4f > 2.0",
+            eta_opt * (1.0 + abs(rho_opt)),
+        )
+        # Mark as invalid — surface is not arbitrage-free
+        success = False
+        if not message:
+            message = "Lee bound violation"
 
     # ------------------------------------------------------------------
     # Build result
     # ------------------------------------------------------------------
-    params = SsviParams(rho=rho_opt, eta=eta_opt, lamb=lamb_opt,
-                        theta_grid=theta_vec)
+    params = SsviParams(rho=rho_opt, eta=eta_opt, lamb=lamb_opt, theta_grid=theta_vec)
 
     # Compute diagnostics
-    total_ss = _ssvi_global_objective(theta_vec, k_all, w_all, weights_all,
-                                       rho_opt, eta_opt, lamb_opt)
+    total_ss = _ssvi_global_objective(
+        theta_vec, k_all, w_all, weights_all, rho_opt, eta_opt, lamb_opt
+    )
     rmse = np.sqrt(total_ss / n_total) if n_total > 0 else 0.0
 
     # Per-slice RMSE
     per_slice_rmse = []
-    for i, (k, w_obs, wts) in enumerate(zip(k_all, w_all, weights_all)):
+    for i, (k, w_obs, wts) in enumerate(zip(k_all, w_all, weights_all, strict=False)):
         theta_i = float(theta_vec[i])
-        phi_i = float(eta_opt / (theta_i ** lamb_opt))
+        phi_i = float(eta_opt / (theta_i**lamb_opt))
         w_fit = ssvi_total_variance(k, theta_i, phi_i, rho_opt)
         residuals = np.sqrt(wts) * (w_obs - w_fit)
-        slice_rmse = np.sqrt(np.sum(residuals ** 2) / len(k))
+        slice_rmse = np.sqrt(np.sum(residuals**2) / len(k))
         per_slice_rmse.append(slice_rmse)
 
     # R-squared
@@ -554,8 +551,8 @@ def calibrate_ssvi_surface(
         t_i_idx, t_j_idx = j_order[i], j_order[i + 1]
         theta_i = float(theta_vec[t_i_idx])
         theta_j = float(theta_vec[t_j_idx])
-        phi_i = float(eta_opt / (theta_i ** lamb_opt))
-        phi_j = float(eta_opt / (theta_j ** lamb_opt))
+        phi_i = float(eta_opt / (theta_i**lamb_opt))
+        phi_j = float(eta_opt / (theta_j**lamb_opt))
         w_i = ssvi_total_variance(k_check, theta_i, phi_i, rho_opt)
         w_j = ssvi_total_variance(k_check, theta_j, phi_j, rho_opt)
         if np.any(w_j - w_i < ARBITRAGE_TOL):

@@ -8,8 +8,6 @@ the calibrated domain via the SSVI functional form.
 
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
 
 from volfoundry.surface.ssvi import (
@@ -106,9 +104,9 @@ class VolatilitySurface:
         log(theta(T)) is linear between grid points; this ensures
         positivity and smooth monotonic behaviour.
         """
-        if T <= self._T[0]:
+        if self._T[0] >= T:
             return float(self._theta[0])
-        if T >= self._T[-1]:
+        if self._T[-1] <= T:
             return float(self._theta[-1])
 
         idx = np.searchsorted(self._T, T)  # first index where T[i] > T
@@ -142,7 +140,7 @@ class VolatilitySurface:
         phi_val = float(self._params.phi(theta))
         return ssvi_total_variance(k, theta, phi_val, self._params.rho)
 
-    def iv(self, strike: float, maturity: float, F: Optional[float] = None) -> float:
+    def iv(self, strike: float, maturity: float, F: float | None = None) -> float:
         """Evaluate implied volatility for a given strike and maturity.
 
         Parameters
@@ -175,12 +173,9 @@ class VolatilitySurface:
         k = np.log(strike / F)
         theta = self._interpolate_theta(maturity)
         phi_val = float(self._params.phi(theta))
-        return float(
-            ssvi_implied_vol(k, theta, phi_val, self._params.rho, maturity)
-        )
+        return float(ssvi_implied_vol(k, theta, phi_val, self._params.rho, maturity))
 
-    def iv_grid(self, strikes: np.ndarray, maturities: np.ndarray,
-                 F: float) -> np.ndarray:
+    def iv_grid(self, strikes: np.ndarray, maturities: np.ndarray, F: float) -> np.ndarray:
         """Evaluate implied volatility on a grid of strikes and maturities.
 
         Parameters

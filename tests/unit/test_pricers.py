@@ -19,19 +19,18 @@ import pytest
 from volfoundry.iv.black_scholes import (
     OptionType,
     black76_price,
-    black76_vega,
 )
+from volfoundry.pricers.binomial import crr_greeks, crr_price
 from volfoundry.pricers.black_scholes import (
     black76_all_greeks,
     black76_delta,
     black76_gamma,
-    black76_theta,
     black76_rho,
+    black76_theta,
     parity_check_call,
     parity_check_put,
     price_and_greeks_vectorized,
 )
-from volfoundry.pricers.binomial import crr_price, crr_greeks
 from volfoundry.pricers.monte_carlo import (
     _generate_paths,
     mc_price,
@@ -57,7 +56,7 @@ class TestBlack76Delta:
 
     def test_put_deep_itm(self):
         d = black76_delta(50000.0, 80000.0, 0.60, 0.25, 0.01, PUT)
-        df = math.exp(-0.01 * 0.25)
+        math.exp(-0.01 * 0.25)
         assert d < -0.9
 
     def test_delta_parity(self):
@@ -227,7 +226,7 @@ class TestVectorized:
         T = np.full(n, 0.25)
         r = np.full(n, 0.01)
         results = price_and_greeks_vectorized(F, K, sigma, T, r, CALL)
-        for key, arr in results.items():
+        for _key, arr in results.items():
             assert arr.shape == (n,)
             assert np.all(np.isfinite(arr))
 
@@ -400,18 +399,15 @@ class TestMCPrice:
     def test_control_variate_more_accurate(self):
         F, K, sigma, T, r = 100.0, 100.0, 0.20, 0.25, 0.05
         bs = black76_price(F, K, sigma, T, r, CALL)
-        raw = mc_price(F, K, sigma, T, r, CALL, n_paths=50_000, seed=99,
-                       use_control_variate=False)
-        cv = mc_price(F, K, sigma, T, r, CALL, n_paths=50_000, seed=99,
-                      use_control_variate=True)
+        raw = mc_price(F, K, sigma, T, r, CALL, n_paths=50_000, seed=99, use_control_variate=False)
+        cv = mc_price(F, K, sigma, T, r, CALL, n_paths=50_000, seed=99, use_control_variate=True)
         # Control variate should be closer to BS price
         err_raw = abs(raw.price - bs)
         err_cv = abs(cv.price - bs)
         assert err_cv < err_raw * 1.5  # CV should be at least somewhat better
 
     def test_price_with_confidence(self):
-        r = mc_price_with_confidence(100.0, 100.0, 0.20, 0.25, 0.05, CALL,
-                                     n_paths=50_000, seed=123)
+        r = mc_price_with_confidence(100.0, 100.0, 0.20, 0.25, 0.05, CALL, n_paths=50_000, seed=123)
         assert r.ci_lower < r.price < r.ci_upper
         assert r.ci_upper - r.ci_lower > 0  # width is positive
 
@@ -428,10 +424,8 @@ class TestMCPrice:
         assert abs(result.price - df * (F - K)) < 1e-12
 
     def test_reproducibility(self):
-        r1 = mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL,
-                      n_paths=10_000, seed=42)
-        r2 = mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL,
-                      n_paths=10_000, seed=42)
+        r1 = mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL, n_paths=10_000, seed=42)
+        r2 = mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL, n_paths=10_000, seed=42)
         assert r1.price == r2.price
 
     def test_returns_bs_control_price(self):
@@ -440,8 +434,7 @@ class TestMCPrice:
         assert abs(r.bs_control_price - bs) < 1e-12
 
     def test_deep_deep_otm(self):
-        r = mc_price(100.0, 0.01, 0.20, 0.25, 0.05, PUT,
-                     n_paths=10_000, seed=99)
+        r = mc_price(100.0, 0.01, 0.20, 0.25, 0.05, PUT, n_paths=10_000, seed=99)
         # Price should be tiny but non-negative
         assert r.price >= 0
 
@@ -524,8 +517,7 @@ class TestPricerBenchmark:
     def test_mc_reasonable(self):
         """MC with 100k paths should complete quickly."""
         t0 = time.perf_counter()
-        mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL,
-                 n_paths=50_000, seed=1)
+        mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL, n_paths=50_000, seed=1)
         elapsed = time.perf_counter() - t0
         assert elapsed < 2.0  # should be fast with numpy
 
@@ -561,9 +553,7 @@ class TestQuantLibBenchmark:
         stdDev = sigma * math.sqrt(T)
         df = math.exp(-r * T)
 
-        payoff = ql.PlainVanillaPayoff(
-            ql.Option.Call if option_type == CALL else ql.Option.Put, K
-        )
+        payoff = ql.PlainVanillaPayoff(ql.Option.Call if option_type == CALL else ql.Option.Put, K)
         bc = ql.BlackCalculator(payoff, F, stdDev, 1.0)  # discount=1 → undiscounted
         ql_price = bc.value() * df  # apply discounting
 
@@ -591,9 +581,7 @@ class TestQuantLibBenchmark:
         stdDev = sigma * math.sqrt(T)
         df = math.exp(-r * T)
 
-        payoff = ql.PlainVanillaPayoff(
-            ql.Option.Call if option_type == CALL else ql.Option.Put, K
-        )
+        payoff = ql.PlainVanillaPayoff(ql.Option.Call if option_type == CALL else ql.Option.Put, K)
         bc = ql.BlackCalculator(payoff, F, stdDev, 1.0)
 
         our = black76_all_greeks(F, K, sigma, T, r, option_type)
@@ -612,9 +600,7 @@ class TestQuantLibBenchmark:
         stdDev = sigma * math.sqrt(T)
         df = math.exp(-rate * T)
 
-        payoff = ql.PlainVanillaPayoff(
-            ql.Option.Call if option_type == CALL else ql.Option.Put, K
-        )
+        payoff = ql.PlainVanillaPayoff(ql.Option.Call if option_type == CALL else ql.Option.Put, K)
         bc = ql.BlackCalculator(payoff, F, stdDev, 1.0)
         ql_price = bc.value() * df
 
@@ -682,6 +668,7 @@ class TestQuantLibBenchmark:
         # C++ hot path (scalar)
         try:
             from volfoundry.pricers._core import black76_price as cpp_price_fn
+
             t0 = time.perf_counter()
             for _ in range(100_000):
                 cpp_price_fn(F, K, sigma, T, df, 1)
@@ -695,10 +682,10 @@ class TestQuantLibBenchmark:
             crr_price(F, K, sigma, T, r, N=100, option_type=CALL)
         crr_time = time.perf_counter() - t0
 
-        print(f"\nBenchmark — 100k option prices:")
+        print("\nBenchmark — 100k option prices:")
         print(f"  QuantLib BlackCalculator: {ql_time:.4f}s")
         print(f"  Our BS analytical:        {bs_time:.4f}s")
         if cpp_time is not None:
-            print(f"  Our C++ hot path:         {cpp_time:.4f}s ({100_000/cpp_time:.0f} calls/s)")
+            print(f"  Our C++ hot path:         {cpp_time:.4f}s ({100_000 / cpp_time:.0f} calls/s)")
             assert cpp_time < ql_time, "C++ should be faster than QuantLib"
         print(f"  CRR 100-step ×100:        {crr_time:.4f}s")

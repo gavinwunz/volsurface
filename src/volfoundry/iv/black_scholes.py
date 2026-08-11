@@ -21,17 +21,16 @@ from __future__ import annotations
 
 import math
 from enum import Enum
-from typing import Optional
 
 import numpy as np
+
+from volfoundry.tolerances import VEGA_FLOOR, VOL_TOL
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 SQRT2PI = math.sqrt(2 * math.pi)
-from volfoundry.tolerances import VOL_TOL, VEGA_FLOOR
-
 IV_CONVERGENCE_TOL = VOL_TOL  # vol tolerance for Newton-Raphson iteration
 MAX_NR_ITERATIONS = 100
 
@@ -52,6 +51,7 @@ def norm_cdf(x: np.ndarray | float) -> np.ndarray | float:
         return 0.5 * (1.0 + math.erf(float(x) / math.sqrt(2)))
     # Use scipy.special.erf for vectorized
     from scipy.special import erf as scipy_erf
+
     return 0.5 * (1.0 + scipy_erf(x / math.sqrt(2)))
 
 
@@ -226,7 +226,7 @@ def implied_vol_nr(
 
     sigma = brenner_subrahmanyam_guess(price, F, K, T, r, option_type)
 
-    for i in range(max_iter):
+    for _i in range(max_iter):
         model_price = black76_price(F, K, sigma, T, r, option_type)
         diff = model_price - price
 
@@ -234,9 +234,7 @@ def implied_vol_nr(
 
         if abs(vega) < VEGA_FLOOR:
             # Fall through to Brent bracketing
-            raise ValueError(
-                "Vega too small for NR; use Brent bracketing fallback."
-            )
+            raise ValueError("Vega too small for NR; use Brent bracketing fallback.")
 
         # Newton step: sigma_new = sigma - (C_mkt - C_model) / vega
         delta_sigma = -diff / vega
@@ -259,9 +257,8 @@ def implied_vol_nr(
             return sigma_new
 
         # Also check price convergence
-        if abs(diff) < tol * max(price, 1e-8):
-            if abs(sigma_new - sigma) < tol:
-                return sigma_new
+        if abs(diff) < tol * max(price, 1e-8) and abs(sigma_new - sigma) < tol:
+            return sigma_new
 
         sigma = sigma_new
 
@@ -307,7 +304,7 @@ def implied_vol_brent(
     ValueError
         If price cannot be bracketed in [sigma_lo, sigma_hi].
     """
-    df = math.exp(-r * T)
+    math.exp(-r * T)
 
     def f(sigma: float) -> float:
         return black76_price(F, K, sigma, T, r, option_type) - price
@@ -342,7 +339,6 @@ def implied_vol_brent(
 
     c, fc = a, fa
     d = b - a
-    e = d
     mflag = True
 
     for _ in range(200):
@@ -354,9 +350,11 @@ def implied_vol_brent(
 
         if fa != fc and fb != fc:
             # Inverse quadratic interpolation
-            s = a * fb * fc / ((fa - fb) * (fa - fc)) + \
-                b * fa * fc / ((fb - fa) * (fb - fc)) + \
-                c * fa * fb / ((fc - fa) * (fc - fb))
+            s = (
+                a * fb * fc / ((fa - fb) * (fa - fc))
+                + b * fa * fc / ((fb - fa) * (fb - fc))
+                + c * fa * fb / ((fc - fa) * (fc - fb))
+            )
         else:
             # Secant
             s = b - fb * (b - a) / (fb - fa)
@@ -418,10 +416,7 @@ def implied_volatility(
     """
     # Quick sanity: price <= intrinsic → zero vol
     df = math.exp(-r * T)
-    if option_type == OptionType.CALL:
-        intrinsic = df * max(0.0, F - K)
-    else:
-        intrinsic = df * max(0.0, K - F)
+    intrinsic = df * max(0.0, F - K) if option_type == OptionType.CALL else df * max(0.0, K - F)
 
     if price <= intrinsic + 1e-15:
         return 1e-12
