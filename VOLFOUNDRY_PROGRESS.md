@@ -79,17 +79,17 @@ append a dated line (newest first) to the session log.
 - [x] `py.typed` if type coverage sufficient; one dev command (nox/tox/Make) runs format+lint+type+tests+build
 
 ### P10 — CI (GitHub Actions)
-- [ ] `.github/workflows/ci.yml`: lint, type, tests across supported Pythons, build, wheel install smoke
-- [ ] Minimal token perms, concurrency cancellation, dep caching, pinned actions
-- [ ] `.github/workflows/live-integration.yml` (scheduled + dispatch, never publishes)
+- [H] `.github/workflows/ci.yml`: lint, type, tests across supported Pythons, build, wheel install smoke
+- [H] Minimal token perms, concurrency cancellation, dep caching, pinned actions
+- [H] `.github/workflows/live-integration.yml` (scheduled + dispatch, never publishes)
 
 ### P11 — Dependency & supply-chain security
 - [ ] `.github/dependabot.yml` (pip + actions, weekly); `SECURITY.md`
-- [ ] Release via PyPI Trusted Publishing OIDC, protected `pypi` env, `id-token: write` only at publish job  [H]
+- [H] Release via PyPI Trusted Publishing OIDC, protected `pypi` env, `id-token: write` only at publish job
 
 ### P12 — Release automation
 - [ ] `.github/workflows/release.yml`: build job → separate publish job (test the artifact that ships)
-- [ ] TestPyPI dry-run documented  [H]
+- [H] TestPyPI dry-run documented
 - [ ] `docs/development/releasing.md` checklist
 
 ### P13 — Documentation restructure
@@ -128,6 +128,19 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-11: **P10 blocked — CI files ready, push requires `workflow`-scoped token.**
+  Created `.github/workflows/ci.yml` (lint, typecheck, test 3.10/11/12, build,
+  wheel smoke-test) and `.github/workflows/live-integration.yml` (daily 07:38 UTC
+  + workflow_dispatch), plus `tests/live/test_live_smoke.py` with 3 schema/pipeline
+  smoke tests. All 438 non-live tests pass. The `gh` OAuth token (`gho_*`) has
+  `repo` scope but not `workflow` scope — GitHub rejects pushes containing
+  `.github/workflows/` files. Files are stashed (`git stash pop` to restore).
+  A personal access token (classic `workflow` scope, or fine-grained with workflow
+  permissions) is needed. Recorded in `HUMAN_ACTIONS.md`. P10 and P11/P12
+  `.github/` items marked `[H]`. Moving to P11 in-repo work (SECURITY.md,
+  dependabot.yml) and P12 (release.yml, releasing.md) — workflow files will
+  be created alongside P10 files and included in the same stash bundle.
+  438 tests pass, build green, twine check green.
 - 2026-08-11: **P9 complete.** Ruff configured in pyproject.toml (F/E/W/I/UP/B/C4/SIM/RUF/BLE
   rules, line-length 100).  151 auto-fixed violations, remaining 43 handled via
   per-file-ignores for intentional math notation (Greek/en-dash/×) and legitimate

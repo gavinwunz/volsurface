@@ -10,6 +10,11 @@ silently claims them done. Nothing below is safe for the agent to fake.
 - [ ] Update repository description and topics (plan §36).
 - [ ] Enable branch protection / required checks as desired.
 - [ ] Enable CodeQL / security features if wanted (plan §13).
+- [ ] **PUSH BLOCKER — CI workflow files.** The `gh` OAuth token lacks the
+      `workflow` scope. Run `git stash pop` to restore the P10 CI files
+      (`.github/workflows/ci.yml`, `.github/workflows/live-integration.yml`,
+      `tests/live/test_live_smoke.py`), then `git commit` and `git push`. Or
+      generate a personal access token with `workflow` scope and use that.
 
 ## PyPI distribution
 - [ ] Confirm the `volfoundry` project name is available / claim it on PyPI.
