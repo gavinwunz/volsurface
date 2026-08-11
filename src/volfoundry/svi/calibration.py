@@ -43,6 +43,8 @@ from volfoundry.svi.parameterization import (
     svi_total_variance,
 )
 
+from volfoundry.tolerances import A_FLOOR, B_FLOOR, CALIBRATION_TOL, EPSILON, R2_FLOOR, SIGMA_FLOOR
+
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
@@ -52,7 +54,7 @@ logger = logging.getLogger(__name__)
 # m: typical range is a few std-devs of log-moneyness
 # sigma: curvature, typically 0.01 - 2.0
 DEFAULT_M_BOUNDS = (-5.0, 5.0)
-DEFAULT_SIGMA_BOUNDS = (1e-6, 5.0)
+DEFAULT_SIGMA_BOUNDS = (SIGMA_FLOOR, 5.0)
 
 # Regularisation: small penalty for deviation from prior
 REG_LAMBDA = 1e-6
@@ -153,11 +155,11 @@ def _inner_lls(
     # Floor ``a`` at a tiny positive epsilon rather than 0.0: SviParams requires
     # a > 0, and on real (OTM-only) smiles the unconstrained intercept beta0 can
     # land at or below zero, which would otherwise raise inside the optimizer.
-    a = max(beta0, 1e-8)
+    a = max(beta0, A_FLOOR)
     b = max(beta2, 0.0)
 
     # Enforce |beta1| < beta2 for valid rho in (-1, 1)
-    if b < 1e-15:
+    if b < B_FLOOR:
         rho = 0.0
         b = max(b, abs(beta1) + 0.001)  # ensure b >= |beta1|
     else:
@@ -202,7 +204,7 @@ def _outer_objective(
         Weighted sum of squared residuals.
     """
     m, sigma_val = float(theta[0]), float(theta[1])
-    sigma_val = max(sigma_val, 1e-12)
+    sigma_val = max(sigma_val, SIGMA_FLOOR)
     _, obj = _inner_lls(k, w_observed, weights, m, sigma=sigma_val)
     if not np.isfinite(obj):
         # Penalise infeasible region heavily
@@ -225,7 +227,7 @@ def calibrate_svi_slice(
     m_bounds: Tuple[float, float] = DEFAULT_M_BOUNDS,
     sigma_bounds: Tuple[float, float] = DEFAULT_SIGMA_BOUNDS,
     method: str = "L-BFGS-B",
-    outer_tol: float = 1e-8,
+    outer_tol: float = CALIBRATION_TOL,
     max_iter: int = 500,
 ) -> SviCalibrationResult:
     """Calibrate raw SVI parameters for a single expiry slice.
@@ -295,7 +297,7 @@ def calibrate_svi_slice(
         options={"maxiter": max_iter, "ftol": outer_tol},
     )
 
-    m_opt, sigma_opt = float(result.x[0]), max(float(result.x[1]), 1e-12)
+    m_opt, sigma_opt = float(result.x[0]), max(float(result.x[1]), SIGMA_FLOOR)
 
     # Recover final parameters from inner solve
     final_params, final_obj = _inner_lls(k, w_observed, weights, m_opt, sigma=sigma_opt)
@@ -323,7 +325,7 @@ def calibrate_svi_slice(
 
     # R-squared
     ss_tot = float(np.sum(weights * (w_observed - np.mean(w_observed)) ** 2))
-    r2 = 1.0 - weighted_ss / ss_tot if ss_tot > 1e-15 else 0.0
+    r2 = 1.0 - weighted_ss / ss_tot if ss_tot > R2_FLOOR else 0.0
 
     k_min, k_max = float(np.min(k)), float(np.max(k))
 
@@ -389,7 +391,7 @@ def build_vega_weights(
         if option_type_strs is not None:
             ot = OptionType.CALL if option_type_strs[i] == "C" else OptionType.PUT
         v = black76_vega(F, float(K_array[i]), sigma_guess, T, r)
-        weights[i] = max(v, 1e-15)
+        weights[i] = max(v, EPSILON)
 
     # Normalise
     weights = weights / np.mean(weights)
@@ -399,7 +401,7 @@ def build_vega_weights(
 def build_inverse_spread_weights(
     bid: np.ndarray,
     ask: np.ndarray,
-    floor: float = 1e-8,
+    floor: float = EPSILON,
 ) -> np.ndarray:
     """Build observation weights proportional to inverse bid-ask spread.
 

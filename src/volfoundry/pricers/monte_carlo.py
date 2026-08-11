@@ -39,12 +39,59 @@ Standard errors are reported alongside the price estimate.
 from __future__ import annotations
 
 import math
+from dataclasses import dataclass
 from enum import Enum
 from typing import Optional, Tuple
 
 import numpy as np
 
 from volfoundry.iv.black_scholes import OptionType, black76_price, norm_cdf
+from volfoundry.tolerances import R2_FLOOR
+
+
+# ---------------------------------------------------------------------------
+# Structured Monte Carlo result
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class MCResult:
+    """Structured Monte Carlo pricing result.
+
+    Replaces the plain ``dict`` returned by earlier versions.  All fields are
+    plain floats so the object is JSON-serialisable and easy to inspect.
+
+    Attributes
+    ----------
+    price : float
+        The variance-reduced (or raw) price estimate.
+    std_error : float
+        Standard error of the price estimate.
+    price_raw : float
+        Raw MC average before control-variate adjustment.
+    bs_control_price : float
+        Analytical Black-76 price used as the control variate.
+    ci_lower : float
+        Lower bound of the 95% confidence interval.
+    ci_upper : float
+        Upper bound of the 95% confidence interval.
+    n_paths : int
+        Number of paths used.
+    seed : int or None
+        Seed used for reproducibility.
+    control_variate : bool
+        Whether the control variate was applied.
+    """
+
+    price: float
+    std_error: float
+    price_raw: float
+    bs_control_price: float
+    ci_lower: float
+    ci_upper: float
+    n_paths: int
+    seed: Optional[int]
+    control_variate: bool
 
 
 def _generate_paths(
@@ -83,7 +130,7 @@ def mc_price(
     n_paths: int = 100_000,
     seed: Optional[int] = None,
     use_control_variate: bool = True,
-) -> dict[str, float]:
+) -> MCResult:
     """Price a European option via Monte Carlo with variance reduction.
 
     Parameters
@@ -110,20 +157,22 @@ def mc_price(
 
     Returns
     -------
-    dict
-        Keys: price, std_error, price_raw, bs_control_price.
-        - price: the variance-reduced estimate (or raw MC if use_control_variate=False).
-        - std_error: standard error of the estimate.
-        - price_raw: raw MC average before control variate adjustment.
-        - bs_control_price: analytical BS price used as control.
+    MCResult
+        Structured result with price, std_error, confidence bounds, and metadata.
     """
+    bs_control = black76_price(F, K, sigma, T, r, option_type)
+
     if sigma <= 0 or T <= 0 or F <= 0 or K <= 0:
         df = math.exp(-r * T)
         if option_type == OptionType.CALL:
             p = float(df * max(F - K, 0.0))
         else:
             p = float(df * max(K - F, 0.0))
-        return {"price": p, "std_error": 0.0, "price_raw": p, "bs_control_price": p}
+        return MCResult(
+            price=p, std_error=0.0, price_raw=p, bs_control_price=p,
+            ci_lower=p, ci_upper=p, n_paths=n_paths, seed=seed,
+            control_variate=use_control_variate,
+        )
 
     # Ensure even number of paths for clean antithetic pairing
     n_paths = max(n_paths, 2)
@@ -150,12 +199,13 @@ def mc_price(
     std_raw = float(np.std(discounted, ddof=1) / math.sqrt(n_paths))
 
     if not use_control_variate:
-        return {
-            "price": price_raw,
-            "std_error": std_raw,
-            "price_raw": price_raw,
-            "bs_control_price": black76_price(F, K, sigma, T, r, option_type),
-        }
+        return MCResult(
+            price=price_raw, std_error=std_raw, price_raw=price_raw,
+            bs_control_price=bs_control,
+            ci_lower=price_raw - 1.96 * std_raw,
+            ci_upper=price_raw + 1.96 * std_raw,
+            n_paths=n_paths, seed=seed, control_variate=False,
+        )
 
     # ------------------------------------------------------------------
     # Black-Scholes delta-hedged control variate
@@ -201,7 +251,7 @@ def mc_price(
     cov_hf = np.mean(hedged_centered * f_centered)
     var_f = np.mean(f_centered * f_centered)
 
-    if var_f > 1e-20:
+    if var_f > R2_FLOOR:
         beta2 = cov_hf / var_f
         adjusted = hedged - beta2 * f_centered
     else:
@@ -209,13 +259,14 @@ def mc_price(
 
     price_cv = float(np.mean(adjusted))
     std_cv = float(np.std(adjusted, ddof=1) / math.sqrt(n_paths))
+    ci_half = 1.96 * std_cv
 
-    return {
-        "price": price_cv,
-        "std_error": std_cv,
-        "price_raw": price_raw,
-        "bs_control_price": black76_price(F, K, sigma, T, r, option_type),
-    }
+    return MCResult(
+        price=price_cv, std_error=std_cv, price_raw=price_raw,
+        bs_control_price=bs_control,
+        ci_lower=price_cv - ci_half, ci_upper=price_cv + ci_half,
+        n_paths=n_paths, seed=seed, control_variate=True,
+    )
 
 
 def mc_price_with_confidence(
@@ -227,16 +278,12 @@ def mc_price_with_confidence(
     option_type: OptionType = OptionType.CALL,
     n_paths: int = 1_000_000,
     seed: Optional[int] = None,
-) -> dict[str, float]:
+) -> MCResult:
     """Higher-precision MC with 95% confidence interval.
 
-    Returns a dict with price, std_error, ci_lower, ci_upper.
+    Returns an MCResult identical to mc_price(). The 95% CI is already
+    included in the result via ci_lower / ci_upper fields.
+
+    This function simply increases the default path count for higher precision.
     """
-    result = mc_price(F, K, sigma, T, r, option_type, n_paths, seed)
-    ci_half = 1.96 * result["std_error"]
-    return {
-        "price": result["price"],
-        "std_error": result["std_error"],
-        "ci_lower": result["price"] - ci_half,
-        "ci_upper": result["price"] + ci_half,
-    }
+    return mc_price(F, K, sigma, T, r, option_type, n_paths, seed)

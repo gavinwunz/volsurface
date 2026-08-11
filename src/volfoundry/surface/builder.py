@@ -23,6 +23,7 @@ from typing import Optional, Union
 import numpy as np
 import pandas as pd
 
+from volfoundry.tolerances import CALIBRATION_TOL, ARBITRAGE_TOL
 from volfoundry.arbitrage.checks import (
     SliceValidationReport,
     check_slice_arbitrage,
@@ -101,12 +102,12 @@ class SurfaceBuilder:
         self,
         min_quotes_per_slice: int = DEFAULT_MIN_QUOTES_PER_SLICE,
         min_expiry_days: float = 2.0,
-        svi_outer_tol: float = 1e-8,
-        ssvi_tol: float = 1e-8,
+        svi_outer_tol: float = CALIBRATION_TOL,
+        ssvi_tol: float = CALIBRATION_TOL,
         k_range: tuple[float, float] = DEFAULT_K_RANGE,
         n_k: int = DEFAULT_N_K,
-        butterfly_tol: float = -1e-12,
-        calendar_tol: float = -1e-12,
+        butterfly_tol: float = ARBITRAGE_TOL,
+        calendar_tol: float = ARBITRAGE_TOL,
     ) -> None:
         self.min_quotes_per_slice = min_quotes_per_slice
         self.min_expiry_days = min_expiry_days

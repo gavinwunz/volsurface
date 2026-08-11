@@ -15,6 +15,8 @@ from typing import Any, Optional
 import numpy as np
 import pandas as pd
 
+from volfoundry.tolerances import ARBITRAGE_TOL
+
 
 # ---------------------------------------------------------------------------
 # Market data containers
@@ -101,7 +103,8 @@ class ValidationReport:
         ``{"k_min": -2.0, "k_max": 2.0, "n_k": 1001, "n_T": 15}``.
     tolerances : dict
         Tolerances used during validation, e.g.
-        ``{"butterfly_tol": -1e-12, "calendar_tol": -1e-12, "bl_tol": -1e-12}``.
+        ``{"butterfly_tol": volfoundry.tolerances.ARBITRAGE_TOL, "calendar_tol":
+        volfoundry.tolerances.ARBITRAGE_TOL, "bl_tol": volfoundry.tolerances.ARBITRAGE_TOL}``.
     per_slice : list[dict]
         Per-slice diagnostic summaries (butterfly min-g, RMSE, etc.).
     warnings : list[str]

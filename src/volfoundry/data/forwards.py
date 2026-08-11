@@ -29,6 +29,8 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 
+from volfoundry.tolerances import EPSILON, R2_FLOOR
+
 logger = logging.getLogger(__name__)
 
 
@@ -92,7 +94,7 @@ def extract_forwards(
 
     for expiry in all_expiries:
         expiry_dt = pd.Timestamp(expiry)
-        T = max((expiry_dt - reference_time).total_seconds() / 365.25 / 86400, 1e-8)
+        T = max((expiry_dt - reference_time).total_seconds() / 365.25 / 86400, EPSILON)
 
         cdf = call_groups.get_group(expiry) if expiry in call_groups.groups else pd.DataFrame()
         pdf = put_groups.get_group(expiry) if expiry in put_groups.groups else pd.DataFrame()
@@ -129,7 +131,7 @@ def extract_forwards(
 
         alpha, beta = theta[0], theta[1]  # alpha = exp(-rT) * F, beta = -exp(-rT)
 
-        if abs(beta) < 1e-15 or beta >= 0:
+        if abs(beta) < EPSILON or beta >= 0:
             logger.warning(
                 "Expiry %s: degenerate beta=%.6f (should be negative), skipping",
                 expiry_dt.date(),
@@ -145,7 +147,7 @@ def extract_forwards(
         y_pred = X @ theta
         ss_res = np.sum((y - y_pred) ** 2)
         ss_tot = np.sum((y - np.mean(y)) ** 2)
-        r2 = float(1 - ss_res / ss_tot) if ss_tot > 1e-15 else 0.0
+        r2 = float(1 - ss_res / ss_tot) if ss_tot > R2_FLOOR else 0.0
 
         results[expiry_dt] = ForwardResult(
             expiry=expiry_dt,
@@ -178,5 +180,5 @@ def compute_time_to_expiry(
     """Compute time-to-expiry in years for a list of expiry datetimes."""
     ref = pd.Timestamp(reference_time)
     return np.array(
-        [max((pd.Timestamp(e) - ref).total_seconds() / 86400.0 / 365.25, 1e-8) for e in expiries]
+        [max((pd.Timestamp(e) - ref).total_seconds() / 86400.0 / 365.25, EPSILON) for e in expiries]
     )

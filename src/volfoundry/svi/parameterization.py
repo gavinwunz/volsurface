@@ -29,6 +29,8 @@ from typing import Optional
 
 import numpy as np
 
+from volfoundry.tolerances import A_FLOOR, RHO_TOL, SIGMA_FLOOR
+
 
 @dataclass
 class SviParams:
@@ -204,11 +206,11 @@ def clip_params_to_valid(params: SviParams) -> SviParams:
         Clipped parameters within valid bounds.
     """
     # Bypass __post_init__ validation: build values first, then construct
-    a = max(params.a, 1e-12)
-    a = a if a > 0 else 1e-12
+    a = max(params.a, A_FLOOR)
+    a = a if a > 0 else A_FLOOR
     b = max(params.b, 0.0)
     b = b if b >= 0 else 0.0
-    rho = max(-0.999, min(0.999, params.rho))
-    sigma = max(params.sigma, 1e-12)
-    sigma = sigma if sigma > 0 else 1e-12
+    rho = max(-RHO_TOL, min(RHO_TOL, params.rho))
+    sigma = max(params.sigma, SIGMA_FLOOR)
+    sigma = sigma if sigma > 0 else SIGMA_FLOOR
     return SviParams(a=a, b=b, rho=rho, m=params.m, sigma=sigma)

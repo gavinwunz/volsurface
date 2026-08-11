@@ -62,10 +62,10 @@ append a dated line (newest first) to the session log.
 - [x] Acceptance tests (plan §9): invalid params detected, calendar-crossing fails strict, strict refuses invalid, report keeps invalid, valid SSVI passes, optimizer≠arbitrage failure, tolerance in metadata
 
 ### P7 — Numerical robustness & reproducibility
-- [ ] IV inversion edge cases (below/above bounds, ~0 maturity, deep ITM/OTM, tiny vega, NaN/Inf) → consistent errors
-- [ ] SVI: deterministic init, multi-start, optimizer diagnostics, bound-proximity warnings, degenerate smiles
-- [ ] Monte Carlo: `numpy.random.Generator`, seeds, standard error/CI, seeded regression tests
-- [ ] Central named tolerances (PRICE_TOL/VOL_TOL/ARBITRAGE_TOL/CALIBRATION_TOL)
+- [x] IV inversion edge cases (below/above bounds, ~0 maturity, deep ITM/OTM, tiny vega, NaN/Inf) → consistent errors
+- [x] SVI: deterministic init, multi-start, optimizer diagnostics, bound-proximity warnings, degenerate smiles
+- [x] Monte Carlo: `numpy.random.Generator`, seeds, standard error/CI, seeded regression tests
+- [x] Central named tolerances (PRICE_TOL/VOL_TOL/ARBITRAGE_TOL/CALIBRATION_TOL)
 
 ### P8 — Test architecture
 - [ ] tests/{unit,property,integration,regression,live}; markers unit/integration/live/slow/benchmark registered
@@ -127,6 +127,21 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-10: **P7 complete.** Created `src/volfoundry/tolerances.py` with central
+  named tolerances (PRICE_TOL, VOL_TOL, ARBITRAGE_TOL, CALIBRATION_TOL) and
+  derived constants (EPSILON, VEGA_FLOOR, SIGMA_FLOOR, A_FLOOR, B_FLOOR, RHO_TOL,
+  R2_FLOOR).  Wired them into all source modules (IV solver, SVI calibration,
+  SSVI calibration, arbitrage checks, Monte Carlo, forwards).  Converted MC
+  result type from plain dict to `MCResult` dataclass with full metadata
+  (confidence bounds, n_paths, seed, control_variate flag).  26 new P7 acceptance
+  tests: central tolerances (3), IV edge cases (9: negative F, zero maturity,
+  huge/tiny vol recovery, deep ITM/OTM, price below/above bounds, vectorised
+  batch), SVI diagnostics (8: deterministic init, outer_success, diagnostics
+  fields, bound-proximity, normalized weights, min-data requirement, degenerate
+  flat smile), MC structured results (6: structured return, CI validity,
+  reproducibility, different-seeds-different, CV accuracy, zero-vol exactness).
+  428 tests pass (402 + 26 new P7).  Build + twine check green.  Wheel installs
+  + imports in clean venv.
 - 2026-08-10: **P6 complete.** The most important quantitative production change.
   SSVI analytical constraints (Lee bound `eta*(1+|rho|) <= 2`, calendar
   monotonicity) are now enforced as hard penalties IN the optimizer objective,

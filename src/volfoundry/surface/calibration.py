@@ -51,6 +51,7 @@ from typing import Callable, Optional, Tuple
 import numpy as np
 from scipy.optimize import minimize
 
+from volfoundry.tolerances import CALIBRATION_TOL, SIGMA_FLOOR, ARBITRAGE_TOL, R2_FLOOR
 from volfoundry.svi.calibration import SviCalibrationResult
 from volfoundry.svi.parameterization import SviParams
 from volfoundry.surface.ssvi import (
@@ -81,7 +82,7 @@ NON_POSITIVE_PHI_PENALTY = 1e20
 # Default bounds
 # ---------------------------------------------------------------------------
 
-DEFAULT_ETA_BOUNDS = (1e-6, 20.0)
+DEFAULT_ETA_BOUNDS = (SIGMA_FLOOR, 20.0)
 DEFAULT_LAMBDA_BOUNDS = (0.0, 1.0)
 DEFAULT_RHO_BOUNDS = (-0.99, 0.99)
 
@@ -389,7 +390,7 @@ def calibrate_ssvi_surface(
     lamb_bounds: tuple[float, float] = DEFAULT_LAMBDA_BOUNDS,
     rho_bounds: tuple[float, float] = DEFAULT_RHO_BOUNDS,
     method: str = "L-BFGS-B",
-    tol: float = 1e-8,
+    tol: float = CALIBRATION_TOL,
     max_iter: int = 500,
 ) -> SsviCalibrationResult:
     """Calibrate SSVI surface globally across all expiry slices.
@@ -507,7 +508,7 @@ def calibrate_ssvi_surface(
     # ------------------------------------------------------------------
     # Validate the result against analytical constraints
     # ------------------------------------------------------------------
-    lee_bound_ok = (eta_opt * (1.0 + abs(rho_opt))) <= 2.0 + 1e-8
+    lee_bound_ok = (eta_opt * (1.0 + abs(rho_opt))) <= 2.0 + CALIBRATION_TOL
     if not lee_bound_ok:
         if success:
             logger.warning(
@@ -543,7 +544,7 @@ def calibrate_ssvi_surface(
     # R-squared
     all_w = np.concatenate(w_all)
     ss_tot = float(np.sum((all_w - np.mean(all_w)) ** 2))
-    r2 = 1.0 - total_ss / ss_tot if ss_tot > 1e-15 else 0.0
+    r2 = 1.0 - total_ss / ss_tot if ss_tot > R2_FLOOR else 0.0
 
     # Calendar arbitrage check
     calendar_violations = 0
@@ -557,7 +558,7 @@ def calibrate_ssvi_surface(
         phi_j = float(eta_opt / (theta_j ** lamb_opt))
         w_i = ssvi_total_variance(k_check, theta_i, phi_i, rho_opt)
         w_j = ssvi_total_variance(k_check, theta_j, phi_j, rho_opt)
-        if np.any(w_j - w_i < -1e-12):
+        if np.any(w_j - w_i < ARBITRAGE_TOL):
             calendar_violations += 1
 
     return SsviCalibrationResult(

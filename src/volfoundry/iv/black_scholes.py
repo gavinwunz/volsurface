@@ -30,9 +30,10 @@ import numpy as np
 # ---------------------------------------------------------------------------
 
 SQRT2PI = math.sqrt(2 * math.pi)
-IV_CONVERGENCE_TOL = 1e-10  # vol tolerance for Newton-Raphson iteration
+from volfoundry.tolerances import VOL_TOL, VEGA_FLOOR
+
+IV_CONVERGENCE_TOL = VOL_TOL  # vol tolerance for Newton-Raphson iteration
 MAX_NR_ITERATIONS = 100
-VEGA_FLOOR = 1e-12  # below this, switch to Brent bracketing
 
 
 class OptionType(Enum):

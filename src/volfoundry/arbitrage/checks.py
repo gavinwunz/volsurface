@@ -25,6 +25,7 @@ from typing import List, Optional, Tuple
 
 import numpy as np
 
+from volfoundry.tolerances import ARBITRAGE_TOL, EPSILON
 from volfoundry.svi.parameterization import (
     SviParams,
     svi_first_derivative,
@@ -67,7 +68,7 @@ def butterfly_g(
     wpp = svi_second_derivative(k, params)
 
     # Avoid division by zero
-    w = np.maximum(w, 1e-15)
+    w = np.maximum(w, EPSILON)
 
     term1 = (1.0 - k * wp / (2.0 * w)) ** 2
     term2 = (wp**2 / 4.0) * (1.0 / w + 0.25)
@@ -77,7 +78,7 @@ def butterfly_g(
 
 
 def butterfly_is_arbitrage_free(
-    k: np.ndarray, params: SviParams, T: float, tol: float = -1e-12
+    k: np.ndarray, params: SviParams, T: float, tol: float = ARBITRAGE_TOL
 ) -> bool:
     """Check if the butterfly condition holds over the given k-range.
 
@@ -102,7 +103,7 @@ def butterfly_is_arbitrage_free(
 
 
 def find_butterfly_violations(
-    k: np.ndarray, params: SviParams, T: float, tol: float = -1e-12
+    k: np.ndarray, params: SviParams, T: float, tol: float = ARBITRAGE_TOL
 ) -> Optional[Tuple[np.ndarray, np.ndarray]]:
     """Find k-regions where the butterfly condition is violated.
 
@@ -137,7 +138,7 @@ def find_butterfly_violations(
 def calendar_monotonicity(
     k: np.ndarray,
     params_slices: List[Tuple[SviParams, float]],
-    tol: float = -1e-12,
+    tol: float = ARBITRAGE_TOL,
 ) -> bool:
     """Check calendar monotonicity across expiry slices.
 
@@ -182,7 +183,7 @@ def calendar_monotonicity(
 def find_calendar_violations(
     k: np.ndarray,
     params_slices: List[Tuple[SviParams, float]],
-    tol: float = -1e-12,
+    tol: float = ARBITRAGE_TOL,
 ) -> List[Tuple[float, float, np.ndarray]]:
     """Find calendar arbitrage violations.
 
@@ -295,7 +296,7 @@ def breeden_litzenberger_density(
 
 def breeden_litzenberger_is_nonnegative(
     K: np.ndarray, F: float, T: float, r: float, sigma: np.ndarray,
-    tol: float = -1e-12,
+    tol: float = ARBITRAGE_TOL,
 ) -> bool:
     """Check that the Breeden-Litzenberger density is non-negative.
 
@@ -394,7 +395,7 @@ def check_slice_arbitrage(
         k = np.linspace(k_min, k_max, n_k)
 
     g = butterfly_g(k, params, T)
-    butterfly_ok = bool(np.all(g >= -1e-12))
+    butterfly_ok = bool(np.all(g >= ARBITRAGE_TOL))
     min_g = float(np.min(g))
 
     # Breeden-Litzenberger

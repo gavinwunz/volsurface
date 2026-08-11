@@ -39,6 +39,7 @@ from volfoundry.pricers.black_scholes import (
 )
 from volfoundry.pricers.binomial import crr_greeks, crr_price
 from volfoundry.pricers.monte_carlo import (
+    MCResult,
     mc_price,
     mc_price_with_confidence,
 )
@@ -72,5 +73,6 @@ __all__ = [
     "crr_price",
     "mc_price",
     "mc_price_with_confidence",
+    "MCResult",
     "_HAS_CPP",
 ]

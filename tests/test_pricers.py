@@ -395,7 +395,7 @@ class TestMCPrice:
         result = mc_price(F, K, sigma, T, r, CALL, n_paths=200_000, seed=42)
         bs = black76_price(F, K, sigma, T, r, CALL)
         # Should be within ~3 standard errors (MC noise)
-        assert abs(result["price"] - bs) < 3.0 * result["std_error"] + 1.0
+        assert abs(result.price - bs) < 3.0 * result.std_error + 1.0
 
     def test_control_variate_more_accurate(self):
         F, K, sigma, T, r = 100.0, 100.0, 0.20, 0.25, 0.05
@@ -405,45 +405,45 @@ class TestMCPrice:
         cv = mc_price(F, K, sigma, T, r, CALL, n_paths=50_000, seed=99,
                       use_control_variate=True)
         # Control variate should be closer to BS price
-        err_raw = abs(raw["price"] - bs)
-        err_cv = abs(cv["price"] - bs)
+        err_raw = abs(raw.price - bs)
+        err_cv = abs(cv.price - bs)
         assert err_cv < err_raw * 1.5  # CV should be at least somewhat better
 
     def test_price_with_confidence(self):
         r = mc_price_with_confidence(100.0, 100.0, 0.20, 0.25, 0.05, CALL,
                                      n_paths=50_000, seed=123)
-        assert r["ci_lower"] < r["price"] < r["ci_upper"]
-        assert r["ci_upper"] - r["ci_lower"] > 0  # width is positive
+        assert r.ci_lower < r.price < r.ci_upper
+        assert r.ci_upper - r.ci_lower > 0  # width is positive
 
     def test_put_pricing(self):
         F, K, sigma, T, r = 50000.0, 60000.0, 0.80, 0.25, 0.03
         bs = black76_price(F, K, sigma, T, r, PUT)
         result = mc_price(F, K, sigma, T, r, PUT, n_paths=200_000, seed=7)
-        assert abs(result["price"] - bs) < 3.0 * result["std_error"] + 2.0
+        assert abs(result.price - bs) < 3.0 * result.std_error + 2.0
 
     def test_zero_vol(self):
         F, K, T, rate = 100.0, 90.0, 0.25, 0.05
         result = mc_price(F, K, 0.0, T, rate, CALL, n_paths=1000, seed=1)
         df = math.exp(-rate * T)
-        assert abs(result["price"] - df * (F - K)) < 1e-12
+        assert abs(result.price - df * (F - K)) < 1e-12
 
     def test_reproducibility(self):
         r1 = mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL,
                       n_paths=10_000, seed=42)
         r2 = mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL,
                       n_paths=10_000, seed=42)
-        assert r1["price"] == r2["price"]
+        assert r1.price == r2.price
 
     def test_returns_bs_control_price(self):
         r = mc_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL, n_paths=2000, seed=5)
         bs = black76_price(100.0, 100.0, 0.20, 0.25, 0.05, CALL)
-        assert abs(r["bs_control_price"] - bs) < 1e-12
+        assert abs(r.bs_control_price - bs) < 1e-12
 
     def test_deep_deep_otm(self):
         r = mc_price(100.0, 0.01, 0.20, 0.25, 0.05, PUT,
                      n_paths=10_000, seed=99)
         # Price should be tiny but non-negative
-        assert r["price"] >= 0
+        assert r.price >= 0
 
     def test_antithetic_paths_count(self):
         F, sigma, T = 100.0, 0.20, 0.25
@@ -474,7 +474,7 @@ class TestCrossPricerConsistency:
         F, K, sigma, T, r = 100.0, 100.0, 0.25, 0.25, 0.05
         bs = black76_all_greeks(F, K, sigma, T, r, option_type)["price"]
         mc = mc_price(F, K, sigma, T, r, option_type, n_paths=200_000, seed=1)
-        assert abs(mc["price"] - bs) < 3.0 * mc["std_error"] + 0.5
+        assert abs(mc.price - bs) < 3.0 * mc.std_error + 0.5
 
     def test_put_call_parity_all_pricers(self):
         F, K, sigma, T, r = 100.0, 100.0, 0.25, 0.25, 0.05
@@ -490,8 +490,8 @@ class TestCrossPricerConsistency:
 
         c_mc = mc_price(F, K, sigma, T, r, CALL, n_paths=100_000, seed=99)
         p_mc = mc_price(F, K, sigma, T, r, PUT, n_paths=100_000, seed=99)
-        err = abs((c_mc["price"] - p_mc["price"]) - df * (F - K))
-        max_err = 3.0 * (c_mc["std_error"] + p_mc["std_error"]) + 0.5
+        err = abs((c_mc.price - p_mc.price) - df * (F - K))
+        max_err = 3.0 * (c_mc.std_error + p_mc.std_error) + 0.5
         assert err < max_err
 
 
