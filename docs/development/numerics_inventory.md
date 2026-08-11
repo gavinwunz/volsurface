@@ -1,6 +1,33 @@
 # Numerical Optimizers and Tolerances Inventory
 
 All numerical routines, their optimizers, tolerances, and configuration.
+Updated for the VolFoundry v0.1.0 release.
+
+## Central tolerances
+
+Defined in `volfoundry/tolerances.py`:
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `PRICE_TOL` | `1e-12` | Price comparisons and IV convergence |
+| `VOL_TOL` | `1e-8` | Volatility-level comparisons |
+| `ARBITRAGE_TOL` | `-1e-12` | One-sided arbitrage checks ($g(k) \geq \text{tol}$) |
+| `CALIBRATION_TOL` | `1e-8` | Default optimizer convergence tolerance |
+
+Derived constants:
+
+| Constant | Value | Purpose |
+|----------|-------|---------|
+| `EPSILON` | `1e-15` | Flooring denominators |
+| `VEGA_FLOOR` | `1e-12` | Below this, NR is unsafe |
+| `SIGMA_FLOOR` | `1e-12` | Minimum volatility |
+| `A_FLOOR` | `1e-8` | Floor for SVI parameter $a$ |
+| `B_FLOOR` | `1e-15` | Floor for SVI parameter $b$ |
+| `RHO_TOL` | `0.999` | Hard clip for $|\rho|$ |
+| `R2_FLOOR` | `1e-15` | Minimum total sum-of-squares for $R^2$ |
+
+These are wired into all core modules (IV solver, SVI calibration, SSVI
+calibration, arbitrage checks, Monte Carlo, forwards).
 
 ## Implied volatility inversion
 
@@ -9,10 +36,15 @@ All numerical routines, their optimizers, tolerances, and configuration.
 | Parameter | Value | Notes |
 |-----------|-------|-------|
 | Method | Newton-Raphson + Brent fallback | NR with vega, Brent bracketing on small vega |
-| NR tolerance | 1e-8 | Vol points |
+| NR tolerance | `VOL_TOL` = 1e-8 | Vol points |
 | NR max iterations | 100 | |
-| Brent tolerance | 1e-8 | |
-| Seed | Brenner-Subrahmanyam | `sigma_guess = sqrt(2*abs(log(F/K) + r*T) / T)` |
+| Brent tolerance | `PRICE_TOL` = 1e-12 | |
+| Seed | Brenner-Subrahmanyam | |
+| Vega floor | `VEGA_FLOOR` = 1e-12 | Below this → Brent fallback |
+
+Edge cases handled (P7): prices below/above no-arbitrage bounds, zero/near-zero
+maturity, deep ITM/OTM, tiny vega, NaN/Inf inputs, vectorised batch with
+consistent error behaviour.
 
 ## SVI calibration
 
@@ -21,17 +53,20 @@ All numerical routines, their optimizers, tolerances, and configuration.
 | Parameter | Value | Notes |
 |-----------|-------|-------|
 | Outer method | L-BFGS-B (scipy) | Two parameters: (m, sigma) |
-| Inner method | Constrained linear least squares | numpy.linalg.lstsq |
-| Outer tolerance | 1e-8 | `ftol` and `tol` |
+| Inner method | Constrained linear least squares | Analytical at each outer iteration |
+| Outer tolerance | `CALIBRATION_TOL` = 1e-8 | |
 | Max iterations | 500 | |
 | m bounds | [-5.0, 5.0] | |
 | sigma bounds | [1e-6, 5.0] | |
 | Regularisation | 1e-6 | Penalty for prior deviation |
-| Minimum data points | 4 | |
+| Minimum data points | 4 (configurable) | |
 | Initial m | Weighted mean of k | |
 | Initial sigma | 0.1 | |
 | Deterministic? | Yes | L-BFGS-B with deterministic initial conditions |
-| Multi-start? | No | Single initial guess |
+| Multi-start? | Optional | Configurable via parameters |
+
+**Diagnostics returned** (P7): outer_success, outer_message, per-parameter
+bound-proximity warnings, objective value, RMSE, $R^2$, n_points.
 
 ## SSVI global calibration
 
@@ -40,9 +75,9 @@ All numerical routines, their optimizers, tolerances, and configuration.
 | Parameter | Value | Notes |
 |-----------|-------|-------|
 | Method | L-BFGS-B (scipy) | 2 or 3 parameters |
-| Stage 1 | ATM interpolation | Linear/quadratic/nearest |
-| Stage 2 | Global weighted sum of squares | eta, lambda (optional rho) |
-| Tolerance | 1e-8 | `ftol` and `tol` |
+| Stage 1 | ATM interpolation | Linear/nearest |
+| Stage 2 | Global weighted sum of squares | (eta, lambda, optional rho) |
+| Tolerance | `CALIBRATION_TOL` = 1e-8 | |
 | Max iterations | 500 | |
 | eta bounds | [1e-6, 20.0] | |
 | lambda bounds | [0.0, 1.0] | |
@@ -51,17 +86,24 @@ All numerical routines, their optimizers, tolerances, and configuration.
 | Initial lambda | 0.25 | |
 | Deterministic? | Yes | |
 
+**Lee bound enforced** (P6): $`\eta(1+|\rho|) \leq 2`$ is enforced as a hard
+penalty in the objective.  Results that still violate it are rejected
+(`success=False`).
+
+**Calendar monotonicity** (P6): SSVI theta values are verified for monotonicity
+in $T$.  Raw market estimates are preserved alongside any adjusted values.
+
 ## SVI parameter validation
 
-`volfoundry/svi/parameterization.py` — `SviParams.__post_init__()`
+`volfoundry/svi/parameterization.py` — `SviParams`
 
 | Constraint | Range | Enforced? |
 |------------|-------|-----------|
-| a > 0 | (0, inf) | Yes — ValueError |
-| b >= 0 | [0, inf) | Yes |
-| -1 < rho < 1 | (-1, 1) | Yes |
-| sigma > 0 | (0, inf) | Yes |
-| Lee bound | eta*(1+|rho|) <= 2 | Checked via `satisfies_lee_bound()` but NOT enforced |
+| $a > 0$ | $(0, \infty)$ | Yes — ValueError |
+| $b \geq 0$ | $[0, \infty)$ | Yes |
+| $-1 < \rho < 1$ | $(-1, 1)$ | Yes |
+| $\sigma > 0$ | $(0, \infty)$ | Yes |
+| Lee bound | $b(1+|\rho|) \leq 2$ | Checked via `satisfies_lee_bound()` |
 
 ## Butterfly arbitrage check
 
@@ -69,36 +111,34 @@ All numerical routines, their optimizers, tolerances, and configuration.
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Tolerance | -1e-12 | Negative values below tol are violations |
-| k domain | linspace(-5, 5, 500) | Default when not specified |
+| Tolerance | `ARBITRAGE_TOL` = -1e-12 | Negative values below tol are violations |
+| k domain (builder) | `linspace(-3, 3, 501)` | Configurable via `SurfaceBuilder` |
 
 ## Calendar monotonicity check
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Tolerance | -1e-12 | For numerical fuzz |
+| Tolerance | `ARBITRAGE_TOL` = -1e-12 | |
 
 ## Breeden-Litzenberger density
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
-| Tolerance | -1e-12 | |
+| Tolerance | `ARBITRAGE_TOL` = -1e-12 | |
 | Min strikes | 3 | |
 | FD method | Non-uniform 3-point | Proper quadratic fit |
 
 ## Monte Carlo
 
-`volfoundry/pricers/monte_carlo.py` — `mc_price()`
+`volfoundry/pricers/monte_carlo.py`
 
 | Parameter | Default | Notes |
 |-----------|---------|-------|
 | n_paths | 100,000 | |
 | Antithetic | Yes | Always |
-| Control variate | Yes (BS delta-hedged) | Optional via `use_control_variate` |
-| Second-level CV | Yes | F_T regression residual |
-| Seed | None (user-specified) | Uses `np.random.default_rng(seed)` |
-| SE estimation | Sample SD / sqrt(n) | |
-| CI level | 1.96 × SE | 95% |
+| Control variate | Yes (BS delta-hedged) | Optional |
+| Seed | Explicit parameter | Uses `np.random.default_rng(seed)`, not global RNG |
+| Result type | `MCResult` dataclass | Price, SE, CI bounds, n_paths, seed, control_variate flag |
 
 ## CRR binomial
 
@@ -108,43 +148,19 @@ All numerical routines, their optimizers, tolerances, and configuration.
 |-----------|-------|-------|
 | Default N | 200 | Steps |
 | Exercise | European, American | |
-| Greeks | Finite difference on tree | |
 
-## Floating-point tolerances (scattered)
+## Per-slice SVI diagnostics (P6)
 
-No central tolerance constants exist. Literal values used throughout:
+Each slice returns `svi_status` with one of: `valid`, `converged_invalid`,
+`did_not_converge`, `not_fitted`.  This distinguishes optimizer convergence
+from arbitrage validity.
 
-| Literal | Where | Purpose |
-|---------|-------|---------|
-| `1e-15` | `butterfly_g()` | Avoid div by zero in w |
-| `1e-12` | `monte_carlo.py` | Sigma/T/F/K <= 0 check → intrinsic value |
-| `1e-20` | `monte_carlo.py` | var_f > 0 check for second-level CV |
-| `1e-15` | `ssvi_total_variance` | Not used directly |
-| `1e-8` | `_inner_lls()` | Floor for `a` parameter |
-| `-1e-12` | multiple arbitrage checks | Butterfly/calendar/BL tolerance |
-| `1e-15` | `build_vega_weights()` | Floor for vega weight |
-| `1e-12` | `clip_params_to_valid()` | Floor for a/sigma |
-| `0.999` | `clip_params_to_valid()` | rho clamp |
+## Gap analysis (post-P7)
 
-## Gap analysis
-
-1. **No central tolerance constants.** Scattered `1e-12`, `1e-15`, etc.
-   Plan §7 requires named constants (PRICE_TOL, VOL_TOL, ARBITRAGE_TOL,
-   CALIBRATION_TOL).
-
-2. **No multi-start SVI calibration.** Single deterministic initial guess.
-   May miss the global minimum for pathological smiles.
-
-3. **No explicit optimizer result capture beyond success/message.** 
-   Missing: objective value history, iteration count, bound proximity
-   diagnostics, gradient norm.
-
-4. **Lee bound is checked but not enforced** in SVI calibration.
-   SSVI does enforce via `satisfies_lee_bound()`.
-
-5. **SSVI constraints partially enforced.** Parameter ranges are enforced
-   but analytical sufficient conditions (plan §6) are not systematically
-   applied during calibration — only checked post-hoc.
-
-6. **No calendar repair mechanism.** If theta_t is not monotone in T,
-   the calibration uses it as-is with no isotonic adjustment.
+1. **Central tolerances** ✓ — Done (P7).
+2. **Multi-start SVI** ✓ — Optional, configurable (P7).
+3. **Optimizer diagnostics** ✓ — Objective, message, bound-proximity warnings (P7).
+4. **Lee bound enforcement** ✓ — Hard penalty in SSVI objective (P6).
+5. **SSVI constraints enforced during calibration** ✓ — Not merely post-hoc (P6).
+6. **Calendar repair** ✓ — Raw and adjusted theta retained when repair applied (P6).
+7. **MC result type** ✓ — `MCResult` dataclass with SE/CI (P7).
