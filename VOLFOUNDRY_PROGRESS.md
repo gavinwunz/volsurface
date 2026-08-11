@@ -99,9 +99,9 @@ append a dated line (newest first) to the session log.
 - [x] Public API docs: purpose, params, return, units, exceptions, example, limitations
 
 ### P14 — README for distribution
-- [ ] First screen: what/why/see/install; hero visual; 10-line quickstart; badges
-- [ ] Claims policy: every number reproducible or dated-snapshot/hardware-tagged; no stale figures
-- [ ] `pip install volfoundry` as headline install; dev instructions lower  [partial H — PyPI]
+- [x] First screen: what/why/see/install; hero visual; 10-line quickstart; badges
+- [x] Claims policy: every number reproducible or dated-snapshot/hardware-tagged; no stale figures
+- [x] `pip install volfoundry` as headline install; dev instructions lower  [partial H — PyPI]
 
 ## Post-first-release (do NOT block v0.1.0)
 - [ ] P15 CLI polish · P16 logging · P17 benchmarks · P18 native wheels · P19 governance files
@@ -129,6 +129,18 @@ create `.VOLFOUNDRY_COMPLETE` and commit it. Human-gated `[H]` items remain in
 `HUMAN_ACTIONS.md` and do not block the marker.
 
 ## Session log (newest first)
+- 2026-08-11: **P14 complete.** README rewritten for VolFoundry distribution.
+  First screen delivers what/why/see/install pattern with hero 3D surface image,
+  10-line quickstart (live + offline paths) using only public APIs, and `pip
+  install volfoundry` as headline. Key features section covers the full pipeline,
+  validation modes (report vs strict), three pricing engines, C++ opt-in, and
+  snapshot reproducibility. Architecture diagram matches plan §22 dependency
+  rules. Unit conventions are explicit. No stale or fabricated numbers — every
+  claim is either reproducible (IV accuracy, benchmark timing) or clearly tagged
+  as a dated snapshot example. Contributing, disclaimer, and license sections
+  present. P14 checkboxes ticked; PyPI install line is partial-H pending actual
+  PyPI publication. 438 tests pass, build + twine check green, wheel + sdist
+  install in clean venvs. Committed as 9f8b3e7, pushed.
 - 2026-08-11: **P13 complete.** Restructured `docs/` tree: `getting-started/`
   (installation, quickstart, offline-data), `concepts/` (implied-volatility,
   volatility-smile, svi, ssvi, arbitrage, forwards), `api/` index with full
